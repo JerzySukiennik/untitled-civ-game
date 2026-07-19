@@ -1,0 +1,12 @@
+{
+  "name": "untitled-civ-game",
+  "version": "0.1.0",
+  "description": "LAN co-op RTS-lite. Authoritative Node.js + ws server, Phaser 3 CDN client, no build step.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.1"
+  }
+}

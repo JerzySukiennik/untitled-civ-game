@@ -1,0 +1,53 @@
+ASSET CREDITS — Untitled Civ Game
+==================================
+
+Every asset below is CC0 1.0 (Creative Commons Zero / public domain dedication).
+CC0 requires no attribution, but sources are credited here as good practice.
+
+--------------------------------------------------------------------
+TILES
+--------------------------------------------------------------------
+Kenney "Tiny Town"      — CC0 — https://kenney.nl/assets/tiny-town
+Kenney "Tiny Farm"      — CC0 — https://kenney.nl/assets/tiny-farm
+Kenney "Tiny Battle"    — CC0 — https://kenney.nl/assets/tiny-battle
+Kenney "Map Pack"       — CC0 — https://kenney.nl/assets/map-pack
+  Author: Kenney (kenney.nl). All Kenney asset packs are CC0.
+
+--------------------------------------------------------------------
+CURSORS
+--------------------------------------------------------------------
+Kenney "Cursor Pack"    — CC0 — https://kenney.nl/assets/cursor-pack
+
+--------------------------------------------------------------------
+UI / INPUT PROMPTS
+--------------------------------------------------------------------
+Kenney "Input Prompts" (v1.5) — CC0 — https://kenney.nl/assets/input-prompts
+
+--------------------------------------------------------------------
+SOUND EFFECTS
+--------------------------------------------------------------------
+Kenney "Interface Sounds" — CC0 — https://kenney.nl/assets/interface-sounds
+  (original files OGG; converted to mp3 for iOS Safari compatibility)
+
+--------------------------------------------------------------------
+MUSIC
+--------------------------------------------------------------------
+calm_building_1/2/3.mp3
+  From "Short Loops Background Music Pack" — CC0
+  https://opengameart.org/content/short-loops-background-music-pack
+  Original files: A Brand New Wisdom.ogg, Swinging Sweet.ogg, Winter Dust.ogg
+  License field on page: CC0. Converted OGG -> mp3.
+
+tension_battle_1/2.mp3, late_era.mp3
+  From "5 Chiptunes (Action)" by Juhani Junkala — CC0
+  https://opengameart.org/content/5-chiptunes-action
+  Original files: "Juhani Junkala [Retro Game Music Pack] Level 1/2/3.wav"
+  CC0 confirmed by author in the pack's bundled INFO.txt:
+  "These music tracks have been released under CC0 creative commons license.
+   You can do anything you want with these tunes." — Juhani Junkala
+  Converted WAV -> mp3.
+
+--------------------------------------------------------------------
+NOTE: A Kenney "Music Jingles" pack and OGA "Victory War & Battle Music
+Loops" were evaluated but NOT used — Music Jingles are short stingers
+(not loops), and the Victory War library is CC-BY 3.0 (not CC0).

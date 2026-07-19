@@ -1,0 +1,178 @@
+/* Minimal shell + DOM overlays (lobby + HUD) laid over the Phaser canvas. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #12180f; }
+body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #eee; }
+#game-root { position: fixed; inset: 0; }
+canvas { display: block; }
+
+/* ---- Lobby overlay ---- */
+#lobby {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 30%, #24331d, #12180f); z-index: 20;
+}
+#lobby .panel {
+  width: 460px; max-width: 92vw; background: #1c2617; border: 1px solid #3a4d2c;
+  border-radius: 12px; padding: 24px; box-shadow: 0 12px 40px rgba(0,0,0,.5);
+}
+#lobby h1 { margin: 0 0 4px; font-size: 22px; }
+#lobby .sub { margin: 0 0 18px; color: #9fb08c; font-size: 13px; }
+#lobby label { display: block; font-size: 12px; color: #9fb08c; margin: 12px 0 4px; }
+#lobby input[type=text], #lobby select {
+  width: 100%; padding: 8px 10px; background: #10160c; color: #eee;
+  border: 1px solid #3a4d2c; border-radius: 6px; font-size: 14px;
+}
+#lobby .row { display: flex; gap: 12px; }
+#lobby .row > div { flex: 1; }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatch { width: 26px; height: 26px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+.swatch.sel { border-color: #fff; }
+.players { margin: 14px 0; border-top: 1px solid #2c3a20; padding-top: 10px; }
+.player { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; }
+.player .dot { width: 12px; height: 12px; border-radius: 50%; }
+.player .tag { color: #c8b45a; font-size: 11px; }
+.player .rdy { margin-left: auto; font-size: 12px; }
+.ready-row { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; }
+#lobby button {
+  width: 100%; padding: 11px; margin-top: 8px; border: 0; border-radius: 7px;
+  background: #4c7a2c; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+#lobby button:disabled { background: #34432a; color: #7d8a6e; cursor: not-allowed; }
+
+/* ---- In-game HUD ---- */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; font-size: 13px; }
+#topbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 34px; display: flex; align-items: center;
+  gap: 16px; padding: 0 12px; background: rgba(12,18,9,.82); border-bottom: 1px solid #3a4d2c;
+  pointer-events: auto;
+}
+#topbar .res { display: flex; align-items: center; gap: 5px; }
+#topbar .res .ic { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+#topbar .spacer { flex: 1; }
+#topbar .meta { color: #9fb08c; }
+#topbar button {
+  pointer-events: auto; background: #34432a; color: #eee; border: 1px solid #4c6636;
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+#topbar .tick { opacity: .6; font-size: 11px; }
+#topbar button.mute { padding: 4px 8px; }
+#topbar button.mute.off { opacity: .45; text-decoration: line-through; }
+#topbar button#hud-pause.on { background: #6b5a1f; border-color: #c8b45a; }
+#buildbar {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 10px; padding: 6px 10px 8px;
+  max-width: 940px; background: rgba(12,18,9,.82);
+  border: 1px solid #3a4d2c; border-bottom: 0; border-radius: 8px 8px 0 0; pointer-events: auto;
+}
+#buildbar .bgroup { display: flex; flex-direction: column; gap: 4px; }
+#buildbar .glabel { color: #9fb08c; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; text-align: center; }
+#buildbar .grow { display: flex; gap: 5px; }
+#buildbar .btn {
+  position: relative; width: 62px; padding: 8px 4px; text-align: center; background: #263318;
+  border: 1px solid #4c6636; border-radius: 6px; cursor: pointer; font-size: 11px; color: #dfe8d0;
+}
+#buildbar .btn .hk {
+  position: absolute; top: 2px; left: 3px; font-size: 9px; color: #c8b45a;
+  background: rgba(0,0,0,.35); border-radius: 3px; padding: 0 3px; line-height: 12px;
+}
+#buildbar .btn .bn { display: block; }
+#buildbar .btn:hover { background: #33471f; }
+#buildbar .btn.active { background: #4c7a2c; border-color: #7bbf4a; }
+#buildbar .btn.locked { opacity: .45; cursor: not-allowed; border-color: #3a4d2c; }
+#buildbar .btn .cost { display: block; color: #c8b45a; margin-top: 3px; font-size: 10px; }
+#buildbar .btn .lock { display: block; color: #d98a5a; font-size: 9px; min-height: 0; }
+#buildbar .btn.locked .cost { display: none; }
+#selpanel {
+  position: absolute; right: 10px; bottom: 110px; width: 190px; display: flex;
+  flex-direction: column; gap: 5px; pointer-events: auto;
+  max-height: calc(100vh - 160px); overflow-y: auto;
+}
+#selpanel:empty { display: none; }
+#selpanel .branch { color: #9fb08c; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+#selpanel .era-row { color: #dfe8d0; font-size: 12px; }
+#selpanel .lockmsg { color: #d98a5a; font-size: 10px; }
+#selpanel button:disabled { opacity: .5; cursor: not-allowed; }
+#selpanel button.done { border-color: #4c7a2c; color: #9fb08c; }
+#selpanel button.active { border-color: #c8b45a; }
+#selpanel button.done .cost { color: #7bbf4a; }
+#selpanel { background: rgba(12,18,9,.85); border: 1px solid #3a4d2c; border-radius: 8px; padding: 10px; }
+#selpanel .ttl { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+#selpanel .hint, #selpanel .q { color: #9fb08c; font-size: 11px; }
+#selpanel button {
+  background: #263318; color: #dfe8d0; border: 1px solid #4c6636; border-radius: 6px;
+  padding: 6px 8px; cursor: pointer; font-size: 12px; text-align: left;
+}
+#selpanel button:hover { background: #33471f; }
+#selpanel button .cost { display: block; color: #c8b45a; font-size: 10px; }
+#tradebar {
+  position: absolute; left: 8px; bottom: 140px; display: flex; align-items: center; gap: 6px;
+  background: rgba(12,18,9,.85); border: 1px solid #3a4d2c; border-radius: 8px;
+  padding: 8px 10px; pointer-events: auto; font-size: 12px; color: #9fb08c;
+}
+#tradebar select {
+  background: #10160c; color: #eee; border: 1px solid #3a4d2c; border-radius: 5px;
+  padding: 3px 4px; font-size: 12px;
+}
+#tradebar button {
+  background: #34432a; color: #eee; border: 1px solid #4c6636; border-radius: 5px;
+  padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+#toast {
+  position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+  background: rgba(180,40,40,.92); color: #fff; padding: 7px 14px; border-radius: 6px;
+  font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+/* ---- End overlay (victory / defeat) ---- */
+#endoverlay {
+  position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+  background: rgba(6, 10, 5, .72); animation: endfade .4s ease;
+}
+@keyframes endfade { from { opacity: 0; } to { opacity: 1; } }
+#endoverlay .card {
+  text-align: center; padding: 40px 56px; border-radius: 14px;
+  background: #1a2416; border: 1px solid #3a4d2c; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+#endoverlay h1 { margin: 0 0 8px; font-size: 46px; letter-spacing: 1px; }
+#endoverlay.win h1 { color: #8fe36a; }
+#endoverlay.lose h1 { color: #e8695f; }
+#endoverlay p { margin: 4px 0; color: #cdd8bd; font-size: 15px; }
+#endoverlay .clk { color: #9fb08c; font-size: 13px; margin-top: 10px; }
+#endoverlay .hint { color: #7d8a6e; font-size: 12px; margin-top: 14px; }
+
+/* ---- Minimap (bottom-left) ---- */
+#minimap {
+  position: absolute; left: 8px; bottom: 8px; padding: 4px; pointer-events: auto;
+  background: rgba(12,18,9,.85); border: 1px solid #3a4d2c; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.45);
+}
+#minimap canvas { display: block; image-rendering: pixelated; border-radius: 4px; cursor: crosshair; }
+
+/* ---- Selection panel: portrait + stats + queue ---- */
+#selpanel .selhead { display: flex; gap: 8px; align-items: center; }
+#selpanel .port {
+  width: 40px; height: 40px; flex: 0 0 40px; background: #10160c; border: 1px solid #4c6636;
+  border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+#selpanel .port img { width: 34px; height: 34px; object-fit: contain; image-rendering: pixelated; }
+#selpanel .port.bport img { width: 38px; height: 38px; }
+#selpanel .selmeta { min-width: 0; }
+#selpanel .stat { color: #c8d6b4; font-size: 11px; }
+#selpanel .queue { color: #9fb08c; font-size: 11px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+#selpanel .queue .qx {
+  width: auto; padding: 1px 6px; font-size: 11px; background: #3a2a1a; border-color: #6b4a2c; color: #f0c0a0;
+}
+
+/* ---- Hover tooltip ---- */
+#tooltip {
+  position: fixed; z-index: 30; max-width: 240px; pointer-events: none; opacity: 0;
+  background: rgba(16,22,12,.96); border: 1px solid #4c6636; border-radius: 7px; padding: 8px 10px;
+  font-size: 12px; color: #e6eeda; box-shadow: 0 8px 24px rgba(0,0,0,.5); transition: opacity .1s;
+}
+#tooltip.show { opacity: 1; }
+#tooltip b { font-size: 13px; }
+#tooltip .tt-w { color: #9fb08c; font-size: 11px; }
+#tooltip .tt-c { display: block; color: #c8b45a; margin-top: 3px; }
+#tooltip .tt-s { display: block; color: #a9c48f; margin-top: 2px; }
+#tooltip .tt-l { display: block; color: #d98a5a; margin-top: 2px; }
+#tooltip .tt-d { display: block; color: #b7c2a6; margin-top: 4px; font-size: 11px; }
