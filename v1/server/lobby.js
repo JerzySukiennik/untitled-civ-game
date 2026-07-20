@@ -114,7 +114,6 @@ class Lobby {
 
   onStart(p) {
     if (this.started) return;
-    if (p.id !== this.hostId) return this.send(p.ws, { t: MSG.ERR, msg: 'only host can start' });
     const all = [...this.players.values()];
     if (all.length === 0 || !all.every((x) => x.ready || !x.connected)) {
       return this.send(p.ws, { t: MSG.ERR, msg: 'all players must be ready' });

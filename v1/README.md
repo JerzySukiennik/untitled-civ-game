@@ -33,9 +33,9 @@ Then open `http://localhost:8080`.
    - **Windows:** run `ipconfig` and read the `IPv4 Address` (looks like `192.168.x.x`).
    - **macOS/Linux:** run `ifconfig` (or `ip addr`) and read the `inet` address of your Wi-Fi/Ethernet adapter.
 2. Every other player opens `http://<that-IP>:8080` in their browser (e.g. `http://192.168.1.42:8080`).
-3. The **first person to join is the host**. Everyone picks a nickname and color, the host also picks
-   the shared civilization, mode, and bot difficulty. When everyone is marked *ready*, the host clicks
-   **Start game**.
+3. Everyone picks a nickname and color. The civilization, mode, and bot difficulty are **shared** —
+   anyone can change them, and everyone sees the change live. Once every player is marked *ready*,
+   **any player** can click **Start game**.
 4. **Firewall note (Windows):** the first time you run the server, Windows may pop up a
    "Windows Defender Firewall" prompt. Allow access on **Private networks** so other machines can
    reach you. If teammates can't connect, re-check that prompt (or add an inbound rule for port 8080).

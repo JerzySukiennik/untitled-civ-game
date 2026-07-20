@@ -116,16 +116,17 @@ window.UCG = window.UCG || {};
         <div class="player">
           <span class="dot" style="background:#${p.color.toString(16).padStart(6, '0')}"></span>
           <span>${escapeHtml(p.nick)}</span>
-          ${p.host ? '<span class="tag">HOST</span>' : ''}
+          ${p.id === UCG.State.playerId ? '<span class="tag">YOU</span>' : ''}
           ${p.connected ? '' : '<span class="off">offline</span>'}
           <span class="rdy ${p.ready ? 'ok' : ''}">${p.ready ? '✓ ready' : 'not ready'}</span>
         </div>`).join('');
 
       const btn = $('#lb-start');
       const allReady = lb.players.length > 0 && lb.players.every((p) => p.ready || !p.connected);
-      btn.style.display = UCG.State.isHost() ? 'block' : 'none';
+      const waiting = lb.players.filter((p) => p.connected && !p.ready).length;
       btn.disabled = !allReady;
-      btn.textContent = allReady ? 'Start game' : 'Waiting for players…';
+      btn.textContent = allReady ? 'Start game'
+        : `Waiting for ${waiting} player${waiting === 1 ? '' : 's'}…`;
     }
 
     update() {
