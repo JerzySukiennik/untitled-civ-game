@@ -12,7 +12,7 @@ window.UCG = window.UCG || {};
       this.cam = UCG.Camera.create(this);
       this.entities = UCG.Entities.create(this);
       this.cursors = UCG.Cursors.create(this);
-      UCG.Input.create(this);
+      UCG.Input.create(this, this.cam);
       UCG.Audio.init();
       this.tooltips = UCG.Tooltips.create(this);
       this.minimap = UCG.Minimap.create(this);

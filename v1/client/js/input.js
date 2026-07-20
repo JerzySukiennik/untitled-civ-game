@@ -15,8 +15,9 @@ window.UCG = window.UCG || {};
     rally: {},                  // buildingId -> {tx,ty} (client-local rally indicator)
     attackArmed: false,
 
-    create(scene) {
+    create(scene, cam) {
       this.scene = scene;
+      this.cam = cam;                // camera controller, so a left-drag can hand off the pan
       this.ghost = scene.add.image(0, 0, 'b_house').setOrigin(0, 0).setAlpha(0.55).setDepth(500).setVisible(false);
       this.box = scene.add.rectangle(0, 0, 1, 1, 0x66ff66, 0.15)
         .setStrokeStyle(1, 0x66ff66, 0.9).setOrigin(0, 0).setDepth(500).setVisible(false);
@@ -36,12 +37,17 @@ window.UCG = window.UCG || {};
       return { update: () => { } };
     },
 
+    // Control groups live on the modifiers: plain digits belong to the build bar.
+    // Ctrl/Cmd+1-5 sets a group, Alt+1-5 recalls it. Matched on ev.code because Alt rewrites ev.key.
     onKey(ev) {
-      const n = parseInt(ev.key, 10);
-      if (!(n >= 1 && n <= 5)) return;
+      const m = /^Digit([1-5])$/.exec(ev.code);
+      if (!m) return;
+      const n = +m[1];
       if (ev.ctrlKey || ev.metaKey) {
-        this.groups[n] = [...this.selected];      // set control group
-      } else {
+        ev.preventDefault();
+        this.groups[n] = [...this.selected];
+      } else if (ev.altKey) {
+        ev.preventDefault();
         const ids = this.groups[n].filter((id) => UCG.State.entities.has(id));
         this.groups[n] = ids;
         this.clearSelection();
@@ -82,17 +88,27 @@ window.UCG = window.UCG || {};
         UCG.Net.send({ t: C.MSG.CURSOR, x: p.worldX / P, y: p.worldY / P });
       }
       this.updateCursor(p);
-      if (this._down && p.leftButtonDown() && !this._wallDrag && !this.placementType) {
+      // Right-drag draws the selection box.
+      if (this._sel && p.rightButtonDown()) {
         if (!this._dragging &&
-          (Math.abs(p.x - this._down.x) > DRAG_PX || Math.abs(p.y - this._down.y) > DRAG_PX)) {
+          (Math.abs(p.x - this._sel.x) > DRAG_PX || Math.abs(p.y - this._sel.y) > DRAG_PX)) {
           this._dragging = true;
           this.box.setVisible(true);
         }
         if (this._dragging) {
-          const x0 = Math.min(this._down.worldX, p.worldX), y0 = Math.min(this._down.worldY, p.worldY);
+          const x0 = Math.min(this._sel.worldX, p.worldX), y0 = Math.min(this._sel.worldY, p.worldY);
           this.box.setPosition(x0, y0);
-          this.box.width = Math.abs(p.worldX - this._down.worldX);
-          this.box.height = Math.abs(p.worldY - this._down.worldY);
+          this.box.width = Math.abs(p.worldX - this._sel.worldX);
+          this.box.height = Math.abs(p.worldY - this._sel.worldY);
+        }
+        return;
+      }
+      // Left-drag past the threshold grabs the map and hands the pan to the camera.
+      if (this._down && p.leftButtonDown() && !this._wallDrag && !this.placementType) {
+        if (!this._panning &&
+          (Math.abs(p.x - this._down.x) > DRAG_PX || Math.abs(p.y - this._down.y) > DRAG_PX)) {
+          this._panning = true;
+          if (this.cam && this.cam.beginDrag) this.cam.beginDrag(p);
         }
         return;
       }
@@ -100,13 +116,16 @@ window.UCG = window.UCG || {};
       const { tx, ty } = this.tileUnder(p);
       this.ghost.setPosition(tx * P, ty * P);
       const ok = this.canPlace(this.placementType, tx, ty);
+      this._ghostOk = ok;
       this.ghost.setTint(ok ? 0x7fb069 : 0xe05545);
+      this.updateCursor(p);
     },
 
     // Context cursor: attack over enemies (military selected), hand over resources (workers selected).
     updateCursor(p) {
-      let kind = '';
-      if (this.placementType) kind = 'cross';
+      let kind = 'idle';
+      if (this._panning) kind = 'grab';
+      else if (this.placementType) kind = this._ghostOk === false ? 'no' : 'cross';
       else if (this.selected.size) {
         const wx = p.worldX / P, wy = p.worldY / P;
         let mil = false, work = false;
@@ -124,15 +143,11 @@ window.UCG = window.UCG || {};
       this.setCursor(kind);
     },
 
+    // Every pointer state has its own art — the native cursor must never appear in-game.
     setCursor(kind) {
       if (this._cursor === kind) return;
       this._cursor = kind;
-      const CUR = {
-        attack: "url('assets/cursors/target_a.png') 12 12, crosshair",
-        hand: "url('assets/cursors/hand_point.png') 8 4, pointer",
-        cross: "url('assets/cursors/cross_large.png') 16 16, crosshair"
-      };
-      this.scene.input.setDefaultCursor(CUR[kind] || 'default');
+      this.scene.input.setDefaultCursor(UCG.CURSORS[kind] || UCG.CURSORS.idle);
     },
 
     shakeGhost() {
@@ -141,8 +156,9 @@ window.UCG = window.UCG || {};
       this.scene.tweens.add({ targets: this.ghost, x: bx + 2, duration: 40, yoyo: true, repeat: 1, onComplete: () => { this.ghost.x = bx; } });
     },
 
+    // Mouse scheme (owner's spec): LEFT = grab the map / issue orders, RIGHT = select units.
     onDown(p) {
-      if (p.rightButtonDown()) { this.onRightClick(p); return; }
+      if (p.rightButtonDown()) { this._sel = { x: p.x, y: p.y, worldX: p.worldX, worldY: p.worldY }; return; }
       if (!p.leftButtonDown()) return;
       const { tx, ty } = this.tileUnder(p);
 
@@ -162,7 +178,10 @@ window.UCG = window.UCG || {};
         if (!p.event.shiftKey) this.cancel();
         return;
       }
-      this._down = { x: p.x, y: p.y, worldX: p.worldX, worldY: p.worldY };
+      // Not placing: left press is a potential map grab. It only becomes a pan once the pointer
+      // moves past the threshold; a clean press-release stays an order to the selected units.
+      this._down = { x: p.x, y: p.y, worldX: p.worldX, worldY: p.worldY, tx, ty };
+      this._panning = false;
     },
 
     onUp(p) {
@@ -174,15 +193,30 @@ window.UCG = window.UCG || {};
         if (!p.event.shiftKey) this.cancel();
         return;
       }
-      if (!this._down) return;
-      const down = this._down; this._down = null;
-      if (this._dragging) {
-        this._dragging = false;
-        this.box.setVisible(false);
-        this.selectBox(down.worldX / P, down.worldY / P, p.worldX / P, p.worldY / P, p.event.shiftKey);
+      // Right button finishes a selection: box if it was dragged, single pick otherwise.
+      if (this._sel && !p.leftButtonReleased()) {
+        const s = this._sel; this._sel = null;
+        if (this._dragging) {
+          this._dragging = false;
+          this.box.setVisible(false);
+          this.selectBox(s.worldX / P, s.worldY / P, p.worldX / P, p.worldY / P, p.event.shiftKey);
+        } else {
+          this.selectAt(p, p.event.shiftKey);
+        }
         return;
       }
-      this.selectAt(p, p.event.shiftKey);
+
+      if (!this._down) return;
+      const down = this._down; this._down = null;
+      // A drag panned the map — no order, no selection change.
+      if (this._panning) {
+        this._panning = false;
+        if (this.cam) this.cam.dragging = false;
+        this.updateCursor(p);            // drop the grab cursor immediately on release
+        return;
+      }
+      // A clean left click orders the current selection (move / attack / gather / rally).
+      this.issueOrder(p, down);
     },
 
     placeWallLine(a, b) {
@@ -255,8 +289,8 @@ window.UCG = window.UCG || {};
       return best;
     },
 
-    // ---- right-click context ----
-    onRightClick(p) {
+    // ---- left-click orders (context sensitive: attack / gather / build / move / rally) ----
+    issueOrder(p) {
       this.attackArmed = false;
       if (this.placementType) { this.cancel(); return; }
       const { tx, ty } = this.tileUnder(p);

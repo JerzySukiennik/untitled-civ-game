@@ -8,6 +8,9 @@ window.UCG = window.UCG || {};
 
   UCG.Entities = {
     create(scene) {
+      // Roads are ground, not structures: they get their own layer below units and buildings so
+      // people and carts walk visibly ON them instead of disappearing underneath.
+      const roadLayer = scene.add.container(0, 0); roadLayer.setDepth(10);
       const layer = scene.add.container(0, 0); layer.setDepth(100);
       const fxLayer = scene.add.container(0, 0); fxLayer.setDepth(120);
       // Client-local rally flag for the currently selected trainer building.
@@ -22,9 +25,12 @@ window.UCG = window.UCG || {};
         if (e.k === C.KIND.BUILDING) {
           const f = UCG.Frames.building[e.type] || UCG.Frames.building.house;
           node.body = scene.add.image(0, 0, f.tex, f.frame).setOrigin(0, 0);
-          node.flag = scene.add.image(P * (e.foot ? e.foot[0] : 2) - 4, -2, UCG.Frames.flag.tex).setOrigin(0.5, 1);
-          node.flag.setTint(UCG.State.civColor(e.side));
-          node.root.add(node.body); node.root.add(node.flag);
+          node.root.add(node.body);
+          if (e.type !== 'road') {   // a road is paving, not a structure worth flying a banner over
+            node.flag = scene.add.image(P * (e.foot ? e.foot[0] : 2) - 4, -2, UCG.Frames.flag.tex).setOrigin(0.5, 1);
+            node.flag.setTint(UCG.State.civColor(e.side));
+            node.root.add(node.flag);
+          }
           node.prog = scene.add.rectangle(0, 0, 12, 3, 0xffcc33).setOrigin(0, 0.5).setVisible(false);
           node.root.add(node.prog);
         } else {
@@ -38,7 +44,7 @@ window.UCG = window.UCG || {};
         node.hp = scene.add.rectangle(0, 0, 12, 2, 0x33dd33).setOrigin(0, 0.5).setVisible(false);
         node.root.add(node.hp);
         node.flashUntil = 0;
-        layer.add(node.root);
+        (e.type === 'road' ? roadLayer : layer).add(node.root);
         return node;
       }
 

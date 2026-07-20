@@ -194,8 +194,8 @@ Read this section before you debug anything. Every item here is a real incident.
 6. **Rejoin tokens live in `sessionStorage`, not `localStorage`** (PLAN says localStorage — this is a
    deliberate deviation). With localStorage, two tabs on one machine collide into the same player,
    which breaks all two-window testing. Trade-off: fully closing and reopening a tab loses the slot.
-7. **The `A` key does double duty** — camera pan and attack-move arm. It only pans when nothing is
-   selected. Keep that guard if you touch `camera.js`.
+7. **Mouse buttons are inverted from RTS convention** by owner preference: LEFT drags the map and
+   issues orders, RIGHT selects. Do not "fix" this back to the familiar scheme.
 8. **`start.bat` must stay CRLF.** Write it with explicit `\r\n`; LF-only breaks on Windows.
 9. **Subagents that die on a session limit can be resumed** with `SendMessage` to their agent id —
    they keep full context. Three of the five stage builds were finished that way. Do not restart a
@@ -211,8 +211,7 @@ Read this section before you debug anything. Every item here is a real incident.
   road entity.
 - Bot never trains knights; wave composition ratios and the "min 1 ram + 1 catapult" rule from
   PLAN §6 are simplified to "first affordable unit per building".
-- Kenney Input Prompts key icons are unused (hotkeys render as text badges); hotkeys are a letter
-  pool, not strictly the Q row.
+- Kenney Input Prompts key icons are unused (hotkeys render as text badges).
 - No ws backpressure cap (PLAN §7 asks to skip non-keyframe deltas above 1 MB buffered).
 - Soft collision can push a unit onto an enemy gate tile (stale side context in the walkability
   check). Cosmetic.
@@ -269,6 +268,28 @@ changes (status, decisions, lessons). Session lessons go to `ClaudeMemory/inbox/
 ## 12. Changelog
 
 Newest first. **Append an entry here for every change.**
+
+### 2026-07-20 — First playtest round: 7 fixes
+Jurek's first real play session produced seven items, all addressed:
+1. **Bot expanded instantly** (three buildings up in the opening seconds, which reads as cheating).
+   Added `openingDelay` / `buildInterval` / `maxSites` to `BOT_DIFF`: the bot now waits before its
+   first extra building and never has more than 1–3 sites open. Measured second building at
+   60 s (Easy) / 45 s (Normal) / 20 s (Hard), was ~1 s on all three.
+2. **Build-bar hotkeys are digits**, not letters: `1`–`9`,`0` then `Shift`+the same for buildings
+   11–20. Matched on `ev.code`, so Shift doesn't scramble them. Control groups moved off the bare
+   digits to **Ctrl+1-5 (set) / Alt+1-5 (recall)**.
+3. **Tree texture clashed** with the generated terrain — trees were the one Kenney frame left in the
+   terrain set. Now drawn in the same language as the boulders (dark outline, lit top-left).
+4. **Units rendered under roads.** Roads moved to their own container at depth 10, below units and
+   buildings, and no longer fly a civ flag.
+5. **House looked wrong** — it mixed a blue roof (frames 48/50, skipping 49) with orange doors. Now
+   frames 52/54 over 72/85 (red roof, windowed wall, door) with a 3px `inset` so it sits on the
+   ground instead of filling its whole footprint. `inset` is now a general option in the recipes.
+6. **Custom cursor in every state**, never the native arrow: new `client/js/cursors.js` owns the
+   whole set (idle/ui/hand/grab/attack/cross/no/busy/menu) and injects CSS so DOM chrome matches.
+7. **Controls reworked** (owner's spec): WASD and edge-scroll removed; **arrow keys** pan;
+   **left-drag grabs the map**; **right-click selects** (click and box); a clean left click issues
+   the order. A 6px threshold separates a click from a drag.
 
 ### 2026-07-20 — Handoff document created
 Added this file. No code change. Standing instruction from Jurek: keep it updated on every change.

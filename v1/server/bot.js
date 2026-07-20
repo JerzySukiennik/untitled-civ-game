@@ -44,6 +44,7 @@ class Bot {
     this.defendTargetId = 0;
     this.defendDirty = false;
     this.built = {};                               // cumulative placements per type
+    this.nextBuildAt = this.diff.openingDelay;     // seconds; warm-up before the first placement
   }
 
   now() { return this.g.tick / C.TICK_RATE; }
@@ -110,6 +111,15 @@ class Bot {
   // ---- building ----
   manageBuild() {
     const g = this.g;
+    // Paced expansion: a warm-up before the first site, then one placement every buildInterval
+    // seconds, and never more than maxSites unfinished at once. Without this the bot blankets its
+    // base in the opening seconds, which reads as cheating.
+    if (this.now() < this.nextBuildAt) return;
+    let open = 0;
+    for (const e of g.entities.values()) {
+      if (e.side === SIDE && e.kind === C.KIND.BUILDING && e.progress < 1) open++;
+    }
+    if (open >= this.diff.maxSites) return;
     const have = this.countBuildings();
     const seen = {};
     for (const t of PLAN) {
@@ -123,8 +133,11 @@ class Bot {
       const spot = this.findSpot(t);
       if (!spot) continue;                                     // no legal spot yet, try next type
       const err = buildings.place(g, SIDE, t, spot.tx, spot.ty);
-      if (!err) this.built[t] = (this.built[t] || 0) + 1;
-      return;                                                  // one placement per second
+      if (!err) {
+        this.built[t] = (this.built[t] || 0) + 1;
+        this.nextBuildAt = this.now() + this.diff.buildInterval;
+      }
+      return;                                                  // at most one placement per pass
     }
   }
 

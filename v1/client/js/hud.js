@@ -14,14 +14,22 @@ window.UCG = window.UCG || {};
     range: ['archer'], stable: ['horseman'], siege: ['ram', 'catapult']
   };
   const BRANCHES = ['Economy', 'Military', 'Construction', 'Population'];
-  const HK_POOL = ['q', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'x', 'c', 'v', 'b'];
+  // Digit hotkeys: 1-9,0 for the first ten buildings, Shift+1-9,0 for the next ten.
+  // Matched on ev.code (Digit1…Digit0) so Shift doesn't scramble the reported key.
+  const HK_DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
   const TECH_BY_BRANCH = {};
   for (const b of BRANCHES) TECH_BY_BRANCH[b] = [];
   for (const id of Object.keys(UCG_TECHS)) TECH_BY_BRANCH[UCG_TECHS[id].branch].push(id);
 
   const BUILD_IDS = Object.keys(UCG_BUILDINGS).filter((id) => id !== 'tc');
   const HK = {}, HK_INV = {};
-  BUILD_IDS.forEach((id, i) => { if (HK_POOL[i]) { HK[id] = HK_POOL[i]; HK_INV[HK_POOL[i]] = id; } });
+  BUILD_IDS.forEach((id, i) => {
+    const d = HK_DIGITS[i % 10];
+    if (!d || i >= 20) return;
+    const shifted = i >= 10;
+    HK[id] = (shifted ? '⇧' : '') + d;
+    HK_INV[(shifted ? 'S' : '') + 'Digit' + d] = id;
+  });
 
   const cost$ = (cost) => UCG.Icons.costHTML(cost);
   function setTxt(node, v) { v = '' + v; if (node._v !== v) { node._v = v; node.textContent = v; } }
@@ -65,7 +73,7 @@ window.UCG = window.UCG || {};
             const d = UCG_BUILDINGS[id];
             const ic = UCG.Icons.building(id);
             return `<button class="bbtn" data-build="${id}">` +
-              `<span class="hk">${(HK[id] || '').toUpperCase()}</span>` +
+              `<span class="hk">${HK[id] || ''}</span>` +
               `<span class="bic">${ic ? `<img src="${ic}" alt="${d.name}">` : ''}</span>` +
               `<span class="bcost">${cost$(d.cost)}</span></button>`;
           }).join('') + `</div></div>`;
@@ -129,9 +137,9 @@ window.UCG = window.UCG || {};
         if (!UCG.State.started) return;
         const ae = document.activeElement;
         if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'SELECT' || ae.tagName === 'TEXTAREA')) return;
-        if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-        const id = HK_INV[ev.key.toLowerCase()];
-        if (id) tryPlace(id);
+        if (ev.ctrlKey || ev.metaKey || ev.altKey) return;   // control groups own the modifiers
+        const id = HK_INV[(ev.shiftKey ? 'S' : '') + ev.code];
+        if (id) { ev.preventDefault(); tryPlace(id); }
       });
 
       // Era ribbon click: select + center own Town Center.

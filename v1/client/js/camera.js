@@ -1,4 +1,5 @@
-// UCG.Camera: WASD + edge-scroll + middle/drag pan + wheel zoom (1.0-3.0). Bounds = map size.
+// UCG.Camera: arrow-key pan + left-drag pan + wheel zoom (1.0-3.0). Bounds = map size.
+// No WASD and no edge-scroll by owner request: the map is grabbed and dragged, never nudged.
 window.UCG = window.UCG || {};
 (function (UCG) {
   const C = UCG_CONST;
@@ -10,13 +11,14 @@ window.UCG = window.UCG || {};
       cam.setBounds(0, 0, worldW, worldH);
       cam.setZoom(C.ZOOM_DEFAULT);
 
-      const keys = scene.input.keyboard.addKeys('W,A,S,D');
-      const ctl = { cam, keys, dragging: false, dragX: 0, dragY: 0, panSpeed: 500, edge: 24 };
+      const keys = scene.input.keyboard.addKeys(
+        { up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT' });
+      const ctl = { cam, keys, dragging: false, dragX: 0, dragY: 0, panSpeed: 500 };
 
-      // Middle-button (or drag) pan.
-      scene.input.on('pointerdown', (p) => {
-        if (p.middleButtonDown()) { ctl.dragging = true; ctl.dragX = p.x; ctl.dragY = p.y; }
-      });
+      // Left-drag (or middle-drag) grabs the map. Input.js owns the click/drag threshold and only
+      // lets a drag through once the pointer has actually moved, so a plain click still commands.
+      ctl.beginDrag = (p) => { ctl.dragging = true; ctl.dragX = p.x; ctl.dragY = p.y; };
+      scene.input.on('pointerdown', (p) => { if (p.middleButtonDown()) ctl.beginDrag(p); });
       scene.input.on('pointerup', () => { ctl.dragging = false; });
       scene.input.on('pointermove', (p) => {
         if (ctl.dragging) {
@@ -43,18 +45,11 @@ window.UCG = window.UCG || {};
 
       ctl.update = (dt) => {
         const d = (ctl.panSpeed * dt) / 1000 / cam.zoom;
-        const p = scene.input.activePointer;
-        const gw = scene.scale.width, gh = scene.scale.height;
         let dx = 0, dy = 0;
-        const aPansCamera = !(UCG.Input && UCG.Input.selected && UCG.Input.selected.size);
-        if (ctl.keys.A.isDown && aPansCamera) dx -= d;
-        if (ctl.keys.D.isDown) dx += d;
-        if (ctl.keys.W.isDown) dy -= d;
-        if (ctl.keys.S.isDown) dy += d;
-        if (p.x >= 0 && p.x < ctl.edge) dx -= d;
-        else if (p.x > gw - ctl.edge && p.x <= gw) dx += d;
-        if (p.y >= 0 && p.y < ctl.edge) dy -= d;
-        else if (p.y > gh - ctl.edge && p.y <= gh) dy += d;
+        if (ctl.keys.left.isDown) dx -= d;
+        if (ctl.keys.right.isDown) dx += d;
+        if (ctl.keys.up.isDown) dy -= d;
+        if (ctl.keys.down.isDown) dy += d;
         if (dx) cam.scrollX += dx;
         if (dy) cam.scrollY += dy;
       };

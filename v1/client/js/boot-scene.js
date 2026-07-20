@@ -33,6 +33,7 @@ window.UCG = window.UCG || {};
   // Generated pixel-art palettes (smoked-glass world spec): warm grass, cool rock, gold ore.
   const PAL = {
     grass: { base: 0x79a556, d: 0x6c964c, l: 0x87b060 },
+    tree: { out: 0x24361f, dk: 0x35552c, md: 0x467036, lt: 0x5c8c42, trunk: 0x4a3728 },
     rock: { out: 0x3f3d38, dk: 0x55524a, md: 0x6f6b60, lt: 0x8a8578, hi: 0xa8a396 },
     gold: { nug: 0xe8b64c, hi: 0xffe08a, dk: 0x9a6f1e },
     water: { base: 0x2f7fd0, l: 0x4b95e0 }
@@ -41,7 +42,9 @@ window.UCG = window.UCG || {};
   // Real-art recipes. scaled: single frame scaled to footprint. grid: frames laid out row-major.
   const B_REAL = {
     tc: { sheet: 'battle', scaled: 14 },        // grey castle
-    house: { sheet: 'town', grid: [[48, 50], [84, 85]] },   // roof edges + window/door walls
+    // Red roof over a windowed wall + door. The old 48/50 + 84/85 mix put a blue roof on orange
+    // doors and skipped frame 49, which read as a mismatched block rather than a house.
+    house: { sheet: 'town', grid: [[52, 54], [72, 85]], inset: 3 },
     farm: { sheet: 'farm', grid: [[0, 1], [12, 13]] },      // crop-row soil
     lumber: { sheet: 'battle', scaled: 5 },     // wooden hut
     quarry: { sheet: 'farm', scaled: 89 },      // stone pile
@@ -110,6 +113,7 @@ window.UCG = window.UCG || {};
       this.buildUnits();
       this.buildDecor();
       if (this.textures.exists('cursor_real')) UCG.Frames.cursor.tex = 'cursor_real';
+      UCG.applyDocumentCursors();
 
       UCG.Net.connect();
       this.scene.start('LobbyScene');
@@ -214,11 +218,20 @@ window.UCG = window.UCG || {};
       // A depletion overlay tile (semi-transparent dark), drawn over near-empty nodes.
       this.tile('t_deplete', (g) => { g.fillStyle(0x101008, 0.42).fillRect(0, 0, P, P); });
 
-      // Forest: keep the readable tiny-town tree, but sit it on the new warm grass base.
-      this.compose('t_forest', P, P, [
-        { sheet: 't_grass', x: 0, y: 0 },
-        { sheet: 'town', frame: 4, x: 0, y: 0 }
-      ]);
+      // Forest: drawn in the same language as the boulders (dark outline, lit top-left, shadow
+      // bottom-right) so it reads as one art set. The Kenney tree clashed with the generated terrain.
+      this.tile('t_forest', (g) => {
+        const T = PAL.tree;
+        this.grassBase(g);
+        g.fillStyle(T.trunk).fillRect(7, 10, 2, 4);
+        g.fillStyle(T.out).fillRect(6, 9, 4, 1);
+        // Canopy: stacked blobs, widest at the bottom.
+        g.fillStyle(T.out).fillCircle(8, 6.5, 5.6);
+        g.fillStyle(T.dk).fillCircle(8, 6.8, 5.0);
+        g.fillStyle(T.md).fillCircle(7.4, 6.0, 4.2);
+        g.fillStyle(T.lt).fillCircle(6.4, 4.8, 2.6);
+        g.fillStyle(T.dk).fillCircle(10.4, 8.4, 2.2);
+      });
     }
 
     buildBuildings() {
@@ -234,11 +247,18 @@ window.UCG = window.UCG || {};
         if (r && r.scaled !== undefined) {
           this.compose(key, w, h, [{ sheet: r.sheet, frame: r.scaled, x: 0, y: 0, scale: Math.min(w, h) / P }]);
         } else if (r && r.grid) {
-          const s = r.scale || 1;
+          // `inset` leaves a margin of ground around the structure so it sits on the land instead
+          // of filling its whole footprint like a solid block.
+          const inset = r.inset || 0;
+          const cols = r.grid[0].length, rowsN = r.grid.length;
+          const s = r.scale || (inset ? Math.min((w - 2 * inset) / (cols * P), (h - 2 * inset) / (rowsN * P)) : 1);
           const parts = [];
-          for (let ry = 0; ry < r.grid.length; ry++)
+          for (let ry = 0; ry < rowsN; ry++)
             for (let rx = 0; rx < r.grid[ry].length; rx++)
-              parts.push({ sheet: r.sheet, frame: r.grid[ry][rx], x: rx * P * s, y: ry * P * s, scale: s });
+              parts.push({
+                sheet: r.sheet, frame: r.grid[ry][rx],
+                x: inset + rx * P * s, y: inset + ry * P * s, scale: s
+              });
           this.compose(key, w, h, parts);
         } else {
           this.placeholderBuilding(key, w, h, BUILDING_COLORS[id] || 0xcccccc); // TODO(asset)

@@ -76,17 +76,20 @@ const UCG_CONST = {
     easy: {
       gatherRateMult: 0.7, freeTrickleF: 0, freeTrickleW: 0, ecoWorkers: 10,
       firstAttackAt: 720, waveInterval: 240, waveSizeStart: 4, waveGrowth: 2,
-      waveCap: 40, maxEra: 3, rebuildEco: false, eraCostMult: 1.2
+      waveCap: 40, maxEra: 3, rebuildEco: false, eraCostMult: 1.2,
+      openingDelay: 60, buildInterval: 15, maxSites: 2
     },
     normal: {
       gatherRateMult: 1.0, freeTrickleF: 0, freeTrickleW: 0, ecoWorkers: 16,
       firstAttackAt: 480, waveInterval: 180, waveSizeStart: 8, waveGrowth: 3,
-      waveCap: 40, maxEra: 5, rebuildEco: true, eraCostMult: 1.0
+      waveCap: 40, maxEra: 5, rebuildEco: true, eraCostMult: 1.0,
+      openingDelay: 45, buildInterval: 14, maxSites: 2
     },
     hard: {
       gatherRateMult: 1.3, freeTrickleF: 1, freeTrickleW: 1, ecoWorkers: 22,
       firstAttackAt: 330, waveInterval: 120, waveSizeStart: 12, waveGrowth: 4,
-      waveCap: 40, maxEra: 5, rebuildEco: true, eraCostMult: 0.85
+      waveCap: 40, maxEra: 5, rebuildEco: true, eraCostMult: 0.85,
+      openingDelay: 20, buildInterval: 8, maxSites: 3
     }
   },
 
