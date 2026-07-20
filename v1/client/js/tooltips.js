@@ -53,6 +53,21 @@ window.UCG = window.UCG || {};
     return Math.round(UCG_BUILDINGS[type].hp * mult);
   }
 
+  // Modified-value tooltip helpers: show "base → final" (final in gold) when a modifier changed it.
+  function fmt(n) { return Math.round(n * 10) / 10; }
+  function pair(base, mod) {
+    const b = fmt(base), m = fmt(mod);
+    return b === m ? '' + m : `${b} <span class="up">→ ${m}</span>`;
+  }
+  function unitStatPairs(type) {
+    const d = UCG_UNITS[type];
+    const parts = ['HP ' + pair(d.hp, unitHp(type))];
+    if (d.dmg) parts.push('dmg ' + pair(d.dmg, unitDmg(type)) + (d.vsBuilding ? ` (×${d.vsBuilding} vs bldg)` : ''));
+    if (d.rng > 1) parts.push('rng ' + pair(d.rng, unitRng(type)));
+    parts.push('spd ' + pair(d.spd, unitSpd(type)));
+    return parts.join(' · ');
+  }
+
   // Stat line for a unit (used by tooltip + selection panel). base=true skips modifier lookup.
   function unitStatLine(type, base) {
     const d = UCG_UNITS[type];
@@ -113,20 +128,23 @@ window.UCG = window.UCG || {};
       if (t.dataset.build) {
         const d = UCG_BUILDINGS[t.dataset.build];
         const lock = UCG.Rules.buildingLock(t.dataset.build);
-        return `<b>${esc(d.name)}</b><span class="tt-c">${costStr(d.cost)}</span>` +
-          `<span class="tt-s">HP ${buildingHp(d.id)} · era ${d.era}</span>` +
+        return `<b>${esc(d.name)}</b> <span class="tt-w">era ${d.era}</span>` +
+          `<div class="tt-c">${UCG.Icons.costHTML(d.cost)}</div>` +
+          `<span class="tt-s">HP ${pair(d.hp, buildingHp(d.id))}</span>` +
           (lock.locked ? `<span class="tt-l">Locked: ${lock.reason}</span>` : '') +
           `<span class="tt-d">${esc(d.desc)}</span>`;
       }
       if (t.dataset.train) {
         const u = UCG_UNITS[t.dataset.train];
-        return `<b>${esc(u.name)}</b><span class="tt-c">${costStr(u.cost)}</span>` +
-          `<span class="tt-s">${unitStatLine(u.id)}</span>` +
+        return `<b>${esc(u.name)}</b>` +
+          `<div class="tt-c">${UCG.Icons.costHTML(u.cost)}</div>` +
+          `<span class="tt-s">${unitStatPairs(u.id)}</span>` +
           `<span class="tt-d">${esc(u.desc)}</span>`;
       }
       if (t.dataset.tech) {
         const k = UCG_TECHS[t.dataset.tech];
-        return `<b>${esc(k.name)}</b><span class="tt-c">${costStr(k.cost)} · ${k.time}s</span>` +
+        return `<b>${esc(k.name)}</b> <span class="tt-w">${k.time}s</span>` +
+          `<div class="tt-c">${UCG.Icons.costHTML(k.cost)}</div>` +
           `<span class="tt-d">${esc(k.desc)}</span>`;
       }
       return '';

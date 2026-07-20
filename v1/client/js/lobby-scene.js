@@ -1,4 +1,5 @@
-// UCG.LobbyScene: DOM-overlay lobby. Nick, color, civ/mode/difficulty (shared), ready, host Start.
+// UCG.LobbyScene: DOM-overlay lobby in the glass language. Nick, color, civ cards, mode/difficulty
+// segmented controls, player list, ready toggle, host Start. All lobby_set wiring unchanged.
 window.UCG = window.UCG || {};
 (function (UCG) {
   const C = UCG_CONST, LS = window.localStorage;
@@ -8,6 +9,7 @@ window.UCG = window.UCG || {};
 
     create() {
       this.built = false;
+      this._ready = false;
       this.buildDom();
       UCG.Net.on('lobby', () => this.render());
       UCG.Net.on('welcome', () => this.render());
@@ -18,31 +20,38 @@ window.UCG = window.UCG || {};
     buildDom() {
       const el = document.createElement('div');
       el.id = 'lobby';
+      const civCards = Object.keys(UCG_CIVS).map((k) => {
+        const c = UCG_CIVS[k];
+        return `<button class="civcard" data-civ="${k}">
+          <span class="chead"><span class="cchip" style="background:#${c.color.toString(16).padStart(6, '0')}"></span>
+          <span class="cname">${c.name}</span></span>
+          <span class="cperk">${c.perks}</span></button>`;
+      }).join('');
       el.innerHTML = `
-        <div class="panel">
-          <h1>Untitled Civ Game</h1>
-          <p class="sub">LAN co-op — share your local IP, everyone opens it in a browser.</p>
-          <label>Nickname</label>
+        <div class="card">
+          <div class="wordmark">Untitled Civ Game</div>
+          <div class="tagline">LAN co-op — share your local IP, everyone opens it in a browser.</div>
+          <label class="eyebrow">Nickname</label>
           <input type="text" id="lb-nick" maxlength="16" />
-          <label>Color</label>
+          <label class="eyebrow">Color</label>
           <div class="swatches" id="lb-swatches"></div>
-          <div class="row">
-            <div><label>Civilization</label><select id="lb-civ"></select></div>
-            <div><label>Mode</label><select id="lb-mode"></select></div>
-            <div><label>Bot difficulty</label><select id="lb-diff"></select></div>
+          <label class="eyebrow">Civilization</label>
+          <div class="civgrid" id="lb-civ">${civCards}</div>
+          <div class="row2" style="margin-top:16px">
+            <div><label class="eyebrow">Mode</label><div class="seg" id="lb-mode"></div></div>
+            <div><label class="eyebrow">Bot difficulty</label><div class="seg" id="lb-diff"></div></div>
           </div>
           <div class="players" id="lb-players"></div>
-          <div class="ready-row">
-            <input type="checkbox" id="lb-ready" /><label for="lb-ready" style="margin:0">I'm ready</label>
+          <div class="lobby-actions">
+            <button id="lb-ready">I'm ready</button>
+            <button id="lb-start">Start game</button>
           </div>
-          <button id="lb-start">Start game</button>
         </div>`;
       document.body.appendChild(el);
       this.el = el;
 
-      const nick = LS.getItem('ucg_nick') || 'Player';
       const nickIn = el.querySelector('#lb-nick');
-      nickIn.value = nick;
+      nickIn.value = LS.getItem('ucg_nick') || 'Player';
       nickIn.addEventListener('input', () => {
         LS.setItem('ucg_nick', nickIn.value);
         UCG.Net.send({ t: C.MSG.LOBBY_SET, nick: nickIn.value });
@@ -60,12 +69,16 @@ window.UCG = window.UCG || {};
         sw.appendChild(d);
       });
 
-      this.fillSelect('#lb-civ', Object.keys(UCG_CIVS).map((k) => [k, UCG_CIVS[k].name]), 'civ');
-      this.fillSelect('#lb-mode', [[C.MODE.NORMAL, 'Normal'], [C.MODE.INTRO, 'Intro'], [C.MODE.CREATIVE, 'Creative']], 'mode');
-      this.fillSelect('#lb-diff', [[C.DIFF.EASY, 'Easy'], [C.DIFF.NORMAL, 'Normal'], [C.DIFF.HARD, 'Hard']], 'difficulty');
+      el.querySelector('#lb-civ').addEventListener('click', (e) => {
+        const c = e.target.closest('.civcard'); if (!c) return;
+        UCG.Net.send({ t: C.MSG.LOBBY_SET, civ: c.dataset.civ });
+      });
 
-      el.querySelector('#lb-ready').addEventListener('change', (e) => {
-        UCG.Net.send({ t: C.MSG.LOBBY_SET, ready: e.target.checked });
+      this.fillSeg('#lb-mode', [[C.MODE.NORMAL, 'Normal'], [C.MODE.INTRO, 'Intro'], [C.MODE.CREATIVE, 'Creative']], 'mode');
+      this.fillSeg('#lb-diff', [[C.DIFF.EASY, 'Easy'], [C.DIFF.NORMAL, 'Normal'], [C.DIFF.HARD, 'Hard']], 'difficulty');
+
+      el.querySelector('#lb-ready').addEventListener('click', () => {
+        UCG.Net.send({ t: C.MSG.LOBBY_SET, ready: !this._ready });
       });
       el.querySelector('#lb-start').addEventListener('click', () => {
         UCG.Net.send({ t: C.MSG.START });
@@ -73,40 +86,42 @@ window.UCG = window.UCG || {};
       this.built = true;
     }
 
-    fillSelect(sel, pairs, key) {
+    fillSeg(sel, pairs, key) {
       const s = this.el.querySelector(sel);
-      pairs.forEach(([v, label]) => {
-        const o = document.createElement('option');
-        o.value = v; o.textContent = label; s.appendChild(o);
+      s.innerHTML = pairs.map(([v, label]) => `<button data-val="${v}">${label}</button>`).join('');
+      s.addEventListener('click', (e) => {
+        const b = e.target.closest('button'); if (!b) return;
+        UCG.Net.send({ t: C.MSG.LOBBY_SET, [key]: b.dataset.val });
       });
-      s.addEventListener('change', () => UCG.Net.send({ t: C.MSG.LOBBY_SET, [key]: s.value }));
     }
 
     render() {
       if (!this.built || !this.el) return;
-      const lb = UCG.State.lobby;
-      // Reflect shared picks.
-      this.el.querySelector('#lb-civ').value = lb.civ;
-      this.el.querySelector('#lb-mode').value = lb.mode;
-      this.el.querySelector('#lb-diff').value = lb.difficulty;
-      // Highlight own color.
+      const lb = UCG.State.lobby, $ = (s) => this.el.querySelector(s);
+      // Civ cards + segmented controls reflect shared picks.
+      $('#lb-civ').querySelectorAll('.civcard').forEach((c) => c.classList.toggle('sel', c.dataset.civ === lb.civ));
+      $('#lb-mode').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.val === lb.mode));
+      $('#lb-diff').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.val === lb.difficulty));
+
       const me = lb.players.find((p) => p.id === UCG.State.playerId);
       this.el.querySelectorAll('.swatch').forEach((d) => {
         d.classList.toggle('sel', me && parseInt(d.dataset.color, 10) === me.color);
       });
-      if (me) this.el.querySelector('#lb-ready').checked = me.ready;
-      // Player list.
-      const pl = this.el.querySelector('#lb-players');
-      pl.innerHTML = lb.players.map((p) => `
+      this._ready = !!(me && me.ready);
+      const rb = $('#lb-ready');
+      rb.classList.toggle('on', this._ready);
+      rb.textContent = this._ready ? '✓ Ready' : "I'm ready";
+
+      $('#lb-players').innerHTML = lb.players.map((p) => `
         <div class="player">
           <span class="dot" style="background:#${p.color.toString(16).padStart(6, '0')}"></span>
           <span>${escapeHtml(p.nick)}</span>
           ${p.host ? '<span class="tag">HOST</span>' : ''}
-          ${p.connected ? '' : '<span class="tag">offline</span>'}
-          <span class="rdy">${p.ready ? '✓ ready' : '…'}</span>
+          ${p.connected ? '' : '<span class="off">offline</span>'}
+          <span class="rdy ${p.ready ? 'ok' : ''}">${p.ready ? '✓ ready' : 'not ready'}</span>
         </div>`).join('');
-      // Start button: host only, everyone connected is ready.
-      const btn = this.el.querySelector('#lb-start');
+
+      const btn = $('#lb-start');
       const allReady = lb.players.length > 0 && lb.players.every((p) => p.ready || !p.connected);
       btn.style.display = UCG.State.isHost() ? 'block' : 'none';
       btn.disabled = !allReady;

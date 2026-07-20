@@ -8,8 +8,9 @@ window.UCG = window.UCG || {};
   const S_PX = 2;                         // minimap pixels per tile (96x56 -> 192x112)
   const REDRAW_MS = 200;                  // composite cadence (dots at ~5 Hz, not per-frame)
   const PING_MS = 700;
+  // Matches the new world palette (grass warm, rock cool, gold ore amber).
   const TERRAIN_COL = {
-    0: '#3f7a34', 1: '#234f1c', 2: '#7c7c7c', 3: '#2f6fb0', 4: '#c8a12a', 5: '#b39a6a'
+    0: '#5c7f3f', 1: '#33501f', 2: '#6f6b60', 3: '#2f6fb0', 4: '#b88a2a', 5: '#b39a6a'
   };
 
   function cssColor(n) { return '#' + (n >>> 0).toString(16).padStart(6, '0').slice(-6); }
@@ -125,9 +126,9 @@ window.UCG = window.UCG || {};
         g.stroke();
       }
 
-      // Camera view rectangle.
+      // Camera view rectangle (gold accent, per design spec).
       const v = this.cam.worldView;
-      g.strokeStyle = 'rgba(255,255,255,0.85)';
+      g.strokeStyle = 'rgba(232,182,76,0.95)';
       g.lineWidth = 1;
       g.strokeRect(v.x / P * S_PX + 0.5, v.y / P * S_PX + 0.5,
         v.width / P * S_PX, v.height / P * S_PX);

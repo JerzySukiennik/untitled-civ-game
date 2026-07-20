@@ -30,8 +30,7 @@ window.UCG = window.UCG || {};
       for (let ty = 0; ty < map.h; ty++) {
         for (let tx = 0; tx < map.w; tx++) {
           const id = map.tiles[ty * map.w + tx];
-          const f = UCG.Frames.terrain[id] || UCG.Frames.terrain[0];
-          rt.batchDraw(f.tex, tx * P, ty * P);
+          rt.batchDraw(UCG.Frames.terrainTex(id, tx, ty), tx * P, ty * P);
         }
       }
       rt.endDraw();
@@ -44,15 +43,27 @@ window.UCG = window.UCG || {};
       if (!S.tilesDirty.length) return;
       for (const i of S.tilesDirty) {
         const tx = i % S.map.w, ty = (i - tx) / S.map.w;
-        const f = UCG.Frames.terrain[S.map.tiles[i]] || UCG.Frames.terrain[0];
-        this.terrain.draw(f.tex, tx * P, ty * P);
+        this.terrain.draw(UCG.Frames.terrainTex(S.map.tiles[i], tx, ty), tx * P, ty * P);
       }
       S.tilesDirty.length = 0;
+    }
+
+    // Darken tiles whose node just dropped below 25% so players see it running out (spec §1d).
+    consumeFadeTiles() {
+      const S = UCG.State;
+      if (!S.nodeFadeDirty.length) return;
+      for (const i of S.nodeFadeDirty) {
+        const tx = i % S.map.w, ty = (i - tx) / S.map.w;
+        this.terrain.draw(UCG.Frames.terrainTex(S.map.tiles[i], tx, ty), tx * P, ty * P);
+        this.terrain.draw('t_deplete', tx * P, ty * P);
+      }
+      S.nodeFadeDirty.length = 0;
     }
 
     update(_time, dt) {
       if (!UCG.State.started) return;
       this.consumeDirtyTiles();
+      this.consumeFadeTiles();
       this.cam.update(dt);
       this.entities.update();
       this.cursors.update();

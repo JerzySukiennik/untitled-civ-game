@@ -81,6 +81,7 @@ window.UCG = window.UCG || {};
         this._lastCursor = now;
         UCG.Net.send({ t: C.MSG.CURSOR, x: p.worldX / P, y: p.worldY / P });
       }
+      this.updateCursor(p);
       if (this._down && p.leftButtonDown() && !this._wallDrag && !this.placementType) {
         if (!this._dragging &&
           (Math.abs(p.x - this._down.x) > DRAG_PX || Math.abs(p.y - this._down.y) > DRAG_PX)) {
@@ -99,7 +100,45 @@ window.UCG = window.UCG || {};
       const { tx, ty } = this.tileUnder(p);
       this.ghost.setPosition(tx * P, ty * P);
       const ok = this.canPlace(this.placementType, tx, ty);
-      this.ghost.setTint(ok ? 0x66ff66 : 0xff6666);
+      this.ghost.setTint(ok ? 0x7fb069 : 0xe05545);
+    },
+
+    // Context cursor: attack over enemies (military selected), hand over resources (workers selected).
+    updateCursor(p) {
+      let kind = '';
+      if (this.placementType) kind = 'cross';
+      else if (this.selected.size) {
+        const wx = p.worldX / P, wy = p.worldY / P;
+        let mil = false, work = false;
+        for (const id of this.selected) {
+          const e = UCG.State.entities.get(id); if (!e) continue;
+          if (e.type === 'worker') work = true;
+          else if (e.type !== 'cart') mil = true;
+        }
+        const enemyU = this.enemyUnitAt(wx, wy);
+        const b = this.buildingAt(Math.floor(wx), Math.floor(wy));
+        const enemyB = b && b.side !== C.SIDE.PLAYERS && b.type !== 'road';
+        if (mil && (enemyU || enemyB)) kind = 'attack';
+        else if (work && UCG.State.nodesByTile.get(Math.floor(wy) * UCG.State.map.w + Math.floor(wx))) kind = 'hand';
+      }
+      this.setCursor(kind);
+    },
+
+    setCursor(kind) {
+      if (this._cursor === kind) return;
+      this._cursor = kind;
+      const CUR = {
+        attack: "url('assets/cursors/target_a.png') 12 12, crosshair",
+        hand: "url('assets/cursors/hand_point.png') 8 4, pointer",
+        cross: "url('assets/cursors/cross_large.png') 16 16, crosshair"
+      };
+      this.scene.input.setDefaultCursor(CUR[kind] || 'default');
+    },
+
+    shakeGhost() {
+      if (!this.ghost.visible) return;
+      const bx = this.ghost.x;
+      this.scene.tweens.add({ targets: this.ghost, x: bx + 2, duration: 40, yoyo: true, repeat: 1, onComplete: () => { this.ghost.x = bx; } });
     },
 
     onDown(p) {
@@ -117,7 +156,7 @@ window.UCG = window.UCG || {};
 
       if (this.placementType) {
         if (this.placementType === 'wall') { this._wallDrag = { tx, ty }; return; }
-        if (!this.canPlace(this.placementType, tx, ty)) { if (UCG.Audio) UCG.Audio.play('error'); return; }
+        if (!this.canPlace(this.placementType, tx, ty)) { this.shakeGhost(); if (UCG.Audio) UCG.Audio.play('error'); return; }
         UCG.Net.send({ t: C.MSG.PLACE, building: this.placementType, tx, ty });
         if (UCG.Audio) UCG.Audio.play('place');
         if (!p.event.shiftKey) this.cancel();

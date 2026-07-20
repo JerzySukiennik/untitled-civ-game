@@ -11,9 +11,31 @@ window.UCG = window.UCG || {};
       [T.MOUNTAIN]: { tex: 't_mountain' }, [T.WATER]: { tex: 't_water' },
       [T.GOLD]: { tex: 't_gold' }, [T.ROAD]: { tex: 't_road' }
     },
-    building: {},   // filled per building id (b_<id>)
+    // Deterministic per-tile variant sets to kill grid banding on large fields.
+    terrainVariants: {
+      [T.GRASS]: ['t_grass', 't_grass2', 't_grass3'],
+      [T.MOUNTAIN]: ['t_mountain', 't_mountain2', 't_mountain3'],
+      [T.WATER]: ['t_water', 't_water2']
+    },
+    // Texture key for a tile, picking a variant deterministically from its coords.
+    terrainTex(id, tx, ty) {
+      const vs = UCG.Frames.terrainVariants[id];
+      if (vs) return vs[(tx * 7 + ty * 13) % vs.length];
+      const f = UCG.Frames.terrain[id];
+      return f ? f.tex : 't_grass';
+    },
+    building: {},   // filled per building id (b_<id>) — composed textures for the world
+    buildingIcon: {}, // {tex,frame} pointing at an image-backed sheet frame (for HUD getBase64)
     unit: {},       // filled per unit id (u_<id>)
     ring: { tex: 'ring' }, flag: { tex: 'flag' }, cursor: { tex: 'cursor' }
+  };
+
+  // Generated pixel-art palettes (smoked-glass world spec): warm grass, cool rock, gold ore.
+  const PAL = {
+    grass: { base: 0x79a556, d: 0x6c964c, l: 0x87b060 },
+    rock: { out: 0x3f3d38, dk: 0x55524a, md: 0x6f6b60, lt: 0x8a8578, hi: 0xa8a396 },
+    gold: { nug: 0xe8b64c, hi: 0xffe08a, dk: 0x9a6f1e },
+    water: { base: 0x2f7fd0, l: 0x4b95e0 }
   };
 
   // Real-art recipes. scaled: single frame scaled to footprint. grid: frames laid out row-major.
@@ -67,6 +89,10 @@ window.UCG = window.UCG || {};
     knight: 0xc62828, archer: 0x81c784, horseman: 0xffb74d, ram: 0x8d6e63, catapult: 0x616161
   };
 
+  // Expose the building art recipes so icons.js can recompose them on a plain 2D canvas
+  // (getBase64 cannot read WebGL-backed composed textures, so the HUD rebuilds icons itself).
+  UCG.Frames.buildingRecipe = B_REAL;
+
   class BootScene extends Phaser.Scene {
     constructor() { super('BootScene'); }
 
@@ -111,32 +137,87 @@ window.UCG = window.UCG || {};
       rt.destroy();
     }
 
+    // Small draw helpers mirroring the PIL prototype (circles + rects at 16px).
+    grassBase(g) {
+      g.fillStyle(PAL.grass.base).fillRect(0, 0, P, P);
+    }
+    speckle(g, list) {
+      for (const [x, y, c] of list) {
+        g.fillStyle(c === 'l' ? PAL.grass.l : PAL.grass.d);
+        g.fillRect(x, y, 2, 1);
+      }
+    }
+    // A rocky boulder cluster: dark outline, mid fill, bottom-right shadow, top-left lit facet + hi.
+    boulders(g, clusters) {
+      const R = PAL.rock;
+      for (const [cx, cy, r] of clusters) { g.fillStyle(R.out).fillCircle(cx, cy, r + 0.7); }
+      for (const [cx, cy, r] of clusters) { g.fillStyle(R.md).fillCircle(cx, cy, r); }
+      for (const [cx, cy, r] of clusters) {
+        g.fillStyle(R.dk).fillCircle(cx + r * 0.35, cy + r * 0.45, r * 0.6);
+        g.fillStyle(R.lt).fillCircle(cx - r * 0.32, cy - r * 0.34, r * 0.62);
+        g.fillStyle(R.hi).fillCircle(cx - r * 0.42, cy - r * 0.44, r * 0.26);
+      }
+    }
+
     buildTerrain() {
-      this.tile('t_grass', (g) => {
-        g.fillStyle(0x4caf50).fillRect(0, 0, P, P);
-        g.fillStyle(0x45a049).fillRect(3, 4, 2, 2).fillRect(10, 9, 2, 2).fillRect(7, 12, 2, 2);
-      });
-      this.tile('t_mountain', (g) => {
-        g.fillStyle(0x8d8d8d).fillRect(0, 0, P, P);
-        g.fillStyle(0x6f6f6f).fillTriangle(8, 2, 1, 15, 15, 15);
-        g.fillStyle(0xf0f0f0).fillTriangle(8, 2, 5, 7, 11, 7);
-      });
+      // Grass: 3 subtle speckle variants (no dot grid), warm green base.
+      const SPECK = [
+        [[3, 4, 'd'], [10, 9, 'l'], [7, 12, 'd'], [13, 3, 'l'], [5, 7, 'd']],
+        [[2, 10, 'l'], [9, 3, 'd'], [12, 11, 'd'], [6, 5, 'l'], [11, 7, 'd']],
+        [[4, 13, 'd'], [8, 8, 'l'], [13, 6, 'd'], [2, 3, 'l'], [10, 13, 'd']]
+      ];
+      this.tile('t_grass', (g) => { this.grassBase(g); this.speckle(g, SPECK[0]); });
+      this.tile('t_grass2', (g) => { this.grassBase(g); this.speckle(g, SPECK[1]); });
+      this.tile('t_grass3', (g) => { this.grassBase(g); this.speckle(g, SPECK[2]); });
+
+      // Mountains: 3 rocky-outcrop variants on a grass base (no snow cap, no triangle rows).
+      const CLUST = [
+        [[6, 8, 5.2], [11, 10, 3.8], [9, 5, 3.2]],
+        [[8, 9, 5.6], [4, 6, 3.0], [12, 6, 3.4]],
+        [[5, 7, 4.2], [10, 8, 4.6], [8, 12, 3.4]]
+      ];
+      this.tile('t_mountain', (g) => { this.grassBase(g); this.boulders(g, CLUST[0]); });
+      this.tile('t_mountain2', (g) => { this.grassBase(g); this.boulders(g, CLUST[1]); });
+      this.tile('t_mountain3', (g) => { this.grassBase(g); this.boulders(g, CLUST[2]); });
+
+      // Water: 2 subtle ripple variants.
       this.tile('t_water', (g) => {
-        g.fillStyle(0x2f7fd0).fillRect(0, 0, P, P);
-        g.fillStyle(0x4b95e0).fillRect(2, 5, 6, 1).fillRect(9, 10, 5, 1);
+        g.fillStyle(PAL.water.base).fillRect(0, 0, P, P);
+        g.fillStyle(PAL.water.l).fillRect(2, 5, 4, 1).fillRect(9, 10, 4, 1);
       });
+      this.tile('t_water2', (g) => {
+        g.fillStyle(PAL.water.base).fillRect(0, 0, P, P);
+        g.fillStyle(PAL.water.l).fillRect(5, 3, 3, 1).fillRect(2, 11, 3, 1).fillRect(10, 7, 4, 1);
+      });
+
       this.tile('t_road', (g) => {
         g.fillStyle(0xc9b18a).fillRect(0, 0, P, P);
         g.fillStyle(0xb89b6e).fillRect(2, 2, 2, 2).fillRect(9, 6, 2, 2).fillRect(5, 11, 2, 2);
       });
-      // Real props over generated grass: tiny-town tree (forest), tiny-town coin (gold ore).
+
+      // Gold ore = mineral deposit in the ground: a rock mass with bright gold nuggets embedded
+      // (deliberately NOT a coin — owner was confused by the old coin sprite).
+      this.tile('t_gold', (g) => {
+        const R = PAL.rock, G = PAL.gold;
+        this.grassBase(g);
+        g.fillStyle(R.out).fillCircle(8, 9, 5.8);
+        g.fillStyle(R.md).fillCircle(8, 9, 5.2);
+        g.fillStyle(R.dk).fillCircle(9.4, 10.2, 3.3);
+        g.fillStyle(R.lt).fillCircle(6.2, 7.0, 3.4);
+        for (const [nx, ny, nr] of [[6, 7, 1.6], [10, 6, 1.2], [9, 11, 1.4], [11, 10, 1.0]]) {
+          g.fillStyle(G.dk).fillCircle(nx, ny, nr + 0.5);
+          g.fillStyle(G.nug).fillCircle(nx, ny, nr);
+          g.fillStyle(G.hi).fillCircle(nx - nr * 0.3, ny - nr * 0.3, nr * 0.45);
+        }
+      });
+
+      // A depletion overlay tile (semi-transparent dark), drawn over near-empty nodes.
+      this.tile('t_deplete', (g) => { g.fillStyle(0x101008, 0.42).fillRect(0, 0, P, P); });
+
+      // Forest: keep the readable tiny-town tree, but sit it on the new warm grass base.
       this.compose('t_forest', P, P, [
         { sheet: 't_grass', x: 0, y: 0 },
         { sheet: 'town', frame: 4, x: 0, y: 0 }
-      ]);
-      this.compose('t_gold', P, P, [
-        { sheet: 't_grass', x: 0, y: 0 },
-        { sheet: 'town', frame: 93, x: 0, y: 0 }
       ]);
     }
 
@@ -196,12 +277,16 @@ window.UCG = window.UCG || {};
     }
 
     buildDecor() {
+      // Civ ring under units: soft dark seat + crisp civ-tinted rim (tinted at runtime).
       const r = this.gfx();
-      r.lineStyle(2, 0xffffff, 1).strokeCircle(9, 9, 7);
-      r.generateTexture('ring', 18, 18); r.destroy();
+      r.fillStyle(0x000000, 0.28).fillEllipse(10, 12, 15, 7);
+      r.lineStyle(1.5, 0xffffff, 1).strokeCircle(10, 10, 7);
+      r.generateTexture('ring', 20, 20); r.destroy();
+      // Selection: soft outer glow + crisp inner white ring (spec §1e).
       const s = this.gfx();
-      s.lineStyle(1, 0xffff88, 1).strokeCircle(9, 9, 8);
-      s.generateTexture('selring', 18, 18); s.destroy();
+      s.lineStyle(3, 0xffffff, 0.22).strokeCircle(11, 11, 9);
+      s.lineStyle(1, 0xffffff, 0.95).strokeCircle(11, 11, 7);
+      s.generateTexture('selring', 22, 22); s.destroy();
       const f = this.gfx();
       f.fillStyle(0x5a4a2a).fillRect(0, 0, 2, 12);
       f.fillStyle(0xffffff).fillRect(2, 0, 8, 6);

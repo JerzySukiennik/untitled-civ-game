@@ -2,6 +2,8 @@
 window.UCG = window.UCG || {};
 (function (UCG) {
   const C = UCG_CONST;
+  // Initial per-tile node amounts by resource key (PLAN §3) — for depletion darkening threshold.
+  const NODE_INIT = { w: C.YIELD.FOREST_WOOD, s: C.YIELD.MOUNTAIN_STONE, g: C.YIELD.GOLD_TILE };
 
   const State = {
     playerId: null,
@@ -18,6 +20,7 @@ window.UCG = window.UCG || {};
     nodesByTile: new Map(),    // ty*W+tx -> node
     tilesDirty: [],            // tile indices whose terrain changed (consumed by game-scene)
     minimapDirty: [],          // same list, consumed independently by the minimap re-bake
+    nodeFadeDirty: [],         // tiles whose node just dropped below 25% (depletion darkening)
     res: { f: 0, w: 0, s: 0, g: 0 },
     pop: { cur: 0, cap: 0 },
     era: 1,
@@ -114,7 +117,13 @@ window.UCG = window.UCG || {};
       if (msg.nodes) {
         for (const nu of msg.nodes) {
           const n = this.nodes.get(nu.id);
-          if (n) n.amt = nu.amt;
+          if (!n) continue;
+          const init = NODE_INIT[n.res] || 1;
+          const wasLow = n.amt < init * 0.25;
+          n.amt = nu.amt;
+          if (!wasLow && n.amt < init * 0.25 && this.map) {
+            this.nodeFadeDirty.push(n.ty * this.map.w + n.tx);
+          }
         }
       }
       this.events = msg.ev || [];
