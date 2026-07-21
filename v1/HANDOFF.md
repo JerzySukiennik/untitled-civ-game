@@ -200,6 +200,12 @@ Read this section before you debug anything. Every item here is a real incident.
 9. **Subagents that die on a session limit can be resumed** with `SendMessage` to their agent id —
    they keep full context. Three of the five stage builds were finished that way. Do not restart a
    dead coder from scratch.
+10. **A looping WebAudio source outlives the page unless you stop it.** `UCG.Audio` loops music with
+    `src.loop = true`; closing the tab (or the embedded browser pane) used to leave it playing until
+    the browser process was killed — Jurek had phantom music for 8 hours with no server running.
+    Fixed via `stopAll()` on `pagehide` + socket close. If you add another persistent audio source,
+    tear it down there too. Note `suspended` is load-bearing: without it `_music()` restarts the
+    track on the very next `update()`.
 
 ---
 
@@ -268,6 +274,18 @@ changes (status, decisions, lessons). Session lessons go to `ClaudeMemory/inbox/
 ## 12. Changelog
 
 Newest first. **Append an entry here for every change.**
+
+### 2026-07-20 — Audio teardown: music no longer outlives the page
+Jurek reported music playing with no server running. Diagnosis: `pmset -g assertions` showed
+Claude.app holding a "Playing audio" assertion for **8h10m** — the game had run in the embedded
+browser pane hours earlier, the pane was closed, and the looping `BufferSource` in `UCG.Audio`
+survived it. Nothing in the client ever stopped music: no `pagehide` handler, no socket-close
+handler. Fix: `UCG.Audio.stopAll()` (stops every slot, clears `curMusic`/`combat`) wired to
+`pagehide` and to a new `_close` pseudo-event from `net.js`; `_open` lifts the suspension so a
+reconnect fades the era track back in on its own. The `suspended` flag guards `_fadeTo` — without
+it `_music()` resurrects the track on the next `update()`, since `update()` keeps running after the
+socket dies. Verified live: music stopped on `pagehide` (slots 1 → 0), stayed stopped through a
+forced `_fadeTo`, and came back after a simulated reconnect. Also added as Trap #10.
 
 ### 2026-07-20 — First playtest round: 7 fixes
 Jurek's first real play session produced seven items, all addressed:

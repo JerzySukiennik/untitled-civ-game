@@ -25,6 +25,7 @@ window.UCG = window.UCG || {};
       ws.onopen = () => {
         this.connected = true;
         if (this._retry) { clearInterval(this._retry); this._retry = null; }
+        this.emit('_open', {});
         this.sendJoin();
       };
       ws.onmessage = (ev) => {
@@ -34,6 +35,7 @@ window.UCG = window.UCG || {};
       };
       ws.onclose = () => {
         this.connected = false;
+        this.emit('_close', {});
         this.scheduleRetry();
       };
       ws.onerror = () => { };

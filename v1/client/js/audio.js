@@ -27,6 +27,7 @@ window.UCG = window.UCG || {};
 
   UCG.Audio = {
     ready: false,
+    suspended: false,               // set by stopAll(); blocks _fadeTo until the socket is back
     muteMusic: LS.getItem('ucg_mute_music') === '1',
     muteSfx: LS.getItem('ucg_mute_sfx') === '1',
 
@@ -62,6 +63,29 @@ window.UCG = window.UCG || {};
       window.addEventListener('keydown', resume);
       UCG.Net.on('over', (m) => this.onOver(m));
       UCG.Net.on('err', () => this.play('error'));
+      // Teardown. A looping BufferSource outlives the page: closing the tab (or the embedded
+      // browser pane) leaves the music playing until the browser process itself is killed —
+      // this cost one 8-hour phantom soundtrack. pagehide covers tab close / bfcache; the
+      // socket close covers a dead server, and reconnecting lifts the suspension so update()
+      // fades the era track back in on its own.
+      window.addEventListener('pagehide', () => this.stopAll());
+      UCG.Net.on('_close', () => this.stopAll());
+      UCG.Net.on('_open', () => { this.suspended = false; });
+    },
+
+    // Stop every music slot and forget the current track. Idempotent; SFX are unaffected.
+    stopAll() {
+      this.suspended = true;
+      if (!this.ready) return;
+      for (const s of this.slots) {
+        if (!s) continue;
+        try { s.src.stop(); } catch (e) { /* already stopped */ }
+        try { s.gain.disconnect(); } catch (e) { /* already detached */ }
+      }
+      this.slots = [null, null];
+      this.curMusic = null;
+      this.mode = 'calm';
+      this.combat.length = 0;
     },
 
     _load() {
@@ -90,7 +114,7 @@ window.UCG = window.UCG || {};
 
     // ---- music crossfade ----
     _fadeTo(name) {
-      if (!this.ready || name === this.curMusic) return;
+      if (!this.ready || this.suspended || name === this.curMusic) return;
       const buf = this.music[name];
       if (!buf || this.ctx.state !== 'running') return;
       const t = this.ctx.currentTime;
