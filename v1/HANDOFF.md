@@ -223,6 +223,12 @@ Read this section before you debug anything. Every item here is a real incident.
     off the island in every direction past the water border indefinitely. This was a deliberate
     choice ("kamerą nie można odlecieć od wyspy... a tak nie powinno być"), not a bug; don't
     re-add `cam.setBounds()` to "fix" scrolling into empty space.
+13. **There are no control groups (removed 2026-07-21, owner's explicit call)** — PLAN.md §8 still
+    says "control groups 1–5 (Ctrl+n set, n recall)"; that line is now stale. Build-bar hotkeys are
+    back on the digit row (`1`-`9`,`0` + Shift, exactly as originally shipped) since nothing competes
+    for it anymore. `Ctrl+A` selects every owned unit instead. Same rule as Trap #7: check the
+    changelog before assuming any control scheme is final — this project's controls have changed
+    direction twice in two days on explicit request.
 
 ---
 
@@ -291,6 +297,17 @@ changes (status, decisions, lessons). Session lessons go to `ClaudeMemory/inbox/
 ## 12. Changelog
 
 Newest first. **Append an entry here for every change.**
+
+### 2026-07-21 — Control groups removed; build hotkeys back on digits; Ctrl+A select-all
+Jurek asked to drop the numbered control groups entirely, put the build bar back on numbers, and
+add a "select all" hotkey. Removed `UCG.Input.groups` and the `onKey` control-group handler from
+`input.js`; the digit row (freed up) reverts the build bar in `hud.js` back to `HK_DIGITS`
+(`1`-`9`,`0` + Shift), exactly the layout it shipped with before yesterday's QWERTY-grid detour.
+New `UCG.Input.selectAll()` bound to `Ctrl+A` (extends the existing `keydown-A` listener, which
+still arms attack-move on a plain press) — selects every own unit with the same criteria as the
+box-select filter (workers, military, and carts alike). Updated the unit-panel hint text and
+README's controls table. See Trap #13 — PLAN.md §8 documenting control groups is now stale by
+explicit decision, not oversight.
 
 ### 2026-07-21 — Camera has no map border; mouse/hotkey scheme reverted to RTS standard
 Two changes from the same request, verified independently.

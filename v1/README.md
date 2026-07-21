@@ -81,11 +81,10 @@ Remember to use the same port in the URL: `http://<IP>:9000`.
 | Middle-drag | Grab and pan the map |
 | Arrow keys | Pan the camera |
 | Mouse wheel | Zoom (1.0×–3.0×) |
-| `Q W E R T` / `S D F G Z` | Start placing the matching building (letter shown on each button) |
-| `Shift` + same letters | Same, for the later buildings |
+| `1`–`9`, `0` | Start placing the matching building (number shown on each button) |
+| `Shift` + `1`–`9`, `0` | Same, for the later buildings |
 | `A` then right-click | Attack-move to a spot (engage anything on the way) |
-| `1`–`5` | Select a control group |
-| `Ctrl` + `1`–`5` | Assign the current selection to that control group |
+| `Ctrl` + `A` | Select every unit you own |
 | `Esc` | Cancel placement / attack-move / deselect |
 | Minimap click | Jump the camera there |
 

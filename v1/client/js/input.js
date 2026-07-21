@@ -1,4 +1,4 @@
-// UCG.Input: unit selection (click + drag box of own units incl. military), control groups 1-5,
+// UCG.Input: unit selection (click + drag box of own units incl. military, Ctrl+A selects all),
 // right-click context orders (move / attack-move onto enemy / gather / build / farm / rally),
 // attack-move arming (A), wall drag-place line, placement ghost with validity tint, throttled
 // cursor broadcast.
@@ -11,7 +11,6 @@ window.UCG = window.UCG || {};
     placementType: null,
     selected: new Set(),        // own unit ids
     selectedBuilding: null,     // own building id or null
-    groups: { 1: [], 2: [], 3: [], 4: [], 5: [] },
     rally: {},                  // buildingId -> {tx,ty} (client-local rally indicator)
     attackArmed: false,
 
@@ -31,28 +30,21 @@ window.UCG = window.UCG || {};
       scene.input.on('pointerdown', (p) => this.onDown(p));
       scene.input.on('pointerup', (p) => this.onUp(p));
       scene.input.keyboard.on('keydown-ESC', () => { this.cancel(); this.attackArmed = false; this.clearSelection(); });
-      scene.input.keyboard.on('keydown-A', () => { if (this.selected.size) this.attackArmed = true; });
-      scene.input.keyboard.on('keydown', (ev) => this.onKey(ev));
+      scene.input.keyboard.on('keydown-A', (ev) => {
+        if (ev.ctrlKey || ev.metaKey) { ev.preventDefault(); this.selectAll(); return; }
+        if (this.selected.size) this.attackArmed = true;
+      });
 
       return { update: () => { } };
     },
 
-    // Control groups (AoE2/SC convention): Ctrl/Cmd+1-5 sets a group, the plain digit recalls it.
-    // Matched on ev.code so modifiers never scramble which digit fired.
-    onKey(ev) {
-      const m = /^Digit([1-5])$/.exec(ev.code);
-      if (!m) return;
-      const n = +m[1];
-      if (ev.ctrlKey || ev.metaKey) {
-        ev.preventDefault();
-        this.groups[n] = [...this.selected];
-      } else if (!ev.altKey) {
-        ev.preventDefault();
-        const ids = this.groups[n].filter((id) => UCG.State.entities.has(id));
-        this.groups[n] = ids;
-        this.clearSelection();
-        for (const id of ids) this.selected.add(id);
+    // Every own unit (workers, military, carts) — same criteria as the box-select filter.
+    selectAll() {
+      this.clearSelection();
+      for (const e of UCG.State.entities.values()) {
+        if (e.k === C.KIND.UNIT && e.side === C.SIDE.PLAYERS) this.selected.add(e.id);
       }
+      if (this.selected.size && UCG.Audio) UCG.Audio.play('select');
     },
 
     begin(type) {
