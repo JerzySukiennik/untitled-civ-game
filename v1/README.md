@@ -79,11 +79,11 @@ Remember to use the same port in the URL: `http://<IP>:9000`.
 | Left-drag box | Select all your units in the box |
 | Right-click | Context order for the selection: move / attack enemy / gather node / build site / set rally |
 | Middle-drag | Grab and pan the map |
-| Arrow keys | Pan the camera |
+| Arrow keys / `WASD` | Pan the camera |
 | Mouse wheel | Zoom (1.0×–3.0×) |
 | `1`–`9`, `0` | Start placing the matching building (number shown on each button) |
 | `Shift` + `1`–`9`, `0` | Same, for the later buildings |
-| `A` then right-click | Attack-move to a spot (engage anything on the way) |
+| `Q` then right-click | Attack-move to a spot (engage anything on the way) |
 | `Ctrl` + `A` | Select every unit you own |
 | `Esc` | Cancel placement / attack-move / deselect |
 | Minimap click | Jump the camera there |

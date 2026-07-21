@@ -339,7 +339,7 @@ window.UCG = window.UCG || {};
       `<div class="hint" id="usel-hp"></div></div></div>` +
       `<div class="stat">${UCG.Tooltips.unitStatLine(primary)}</div>` +
       (total > 1 ? `<div class="hint">${list}</div>` : `<div class="hint">${UCG_UNITS[primary].desc}</div>`) +
-      `<div class="eyebrow-s">A attack-move · Ctrl+A select all</div>`;
+      `<div class="eyebrow-s">Q attack-move · Ctrl+A select all</div>`;
   }
 
   // ---- building selection panel ----

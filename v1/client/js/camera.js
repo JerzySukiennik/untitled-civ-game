@@ -1,8 +1,9 @@
-// UCG.Camera: arrow-key pan + middle-drag pan + wheel zoom (1.0-3.0). No scroll bounds by owner
-// request: the camera can fly off the island in any direction, past the water border.
-// No WASD and no edge-scroll by owner request: the map is grabbed and dragged, never nudged.
+// UCG.Camera: arrow-key/WASD pan + middle-drag pan + wheel zoom (1.0-3.0). No scroll bounds by
+// owner request: the camera can fly off the island in any direction, past the water border.
+// No edge-scroll by owner request: the map is grabbed and dragged, never nudged by the cursor.
 // Left-drag is reserved for unit/box selection (input.js) since the mouse scheme reverted to the
-// standard RTS convention (left = select, right = order).
+// standard RTS convention (left = select, right = order). WASD added 2026-07-21 — attack-move's
+// arm hotkey moved from 'A' to 'Q' (input.js) to avoid colliding with pan-left.
 window.UCG = window.UCG || {};
 (function (UCG) {
   const C = UCG_CONST;
@@ -13,7 +14,7 @@ window.UCG = window.UCG || {};
       cam.setZoom(C.ZOOM_DEFAULT);
 
       const keys = scene.input.keyboard.addKeys(
-        { up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT' });
+        { up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', w: 'W', a: 'A', s: 'S', d: 'D' });
       const ctl = { cam, keys, dragging: false, dragX: 0, dragY: 0, panSpeed: 500 };
 
       // Middle-drag grabs the map.
@@ -46,10 +47,10 @@ window.UCG = window.UCG || {};
       ctl.update = (dt) => {
         const d = (ctl.panSpeed * dt) / 1000 / cam.zoom;
         let dx = 0, dy = 0;
-        if (ctl.keys.left.isDown) dx -= d;
-        if (ctl.keys.right.isDown) dx += d;
-        if (ctl.keys.up.isDown) dy -= d;
-        if (ctl.keys.down.isDown) dy += d;
+        if (ctl.keys.left.isDown || ctl.keys.a.isDown) dx -= d;
+        if (ctl.keys.right.isDown || ctl.keys.d.isDown) dx += d;
+        if (ctl.keys.up.isDown || ctl.keys.w.isDown) dy -= d;
+        if (ctl.keys.down.isDown || ctl.keys.s.isDown) dy += d;
         if (dx) cam.scrollX += dx;
         if (dy) cam.scrollY += dy;
       };

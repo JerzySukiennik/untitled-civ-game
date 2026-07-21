@@ -1,6 +1,6 @@
 // UCG.Input: unit selection (click + drag box of own units incl. military, Ctrl+A selects all),
 // right-click context orders (move / attack-move onto enemy / gather / build / farm / rally),
-// attack-move arming (A), wall drag-place line, placement ghost with validity tint, throttled
+// attack-move arming (Q), wall drag-place line, placement ghost with validity tint, throttled
 // cursor broadcast.
 window.UCG = window.UCG || {};
 (function (UCG) {
@@ -30,9 +30,11 @@ window.UCG = window.UCG || {};
       scene.input.on('pointerdown', (p) => this.onDown(p));
       scene.input.on('pointerup', (p) => this.onUp(p));
       scene.input.keyboard.on('keydown-ESC', () => { this.cancel(); this.attackArmed = false; this.clearSelection(); });
+      // Attack-move arms on Q, not A — A now pans the camera left (WASD), so a plain press would
+      // otherwise arm an attack-move every time the camera nudges left with units selected.
+      scene.input.keyboard.on('keydown-Q', () => { if (this.selected.size) this.attackArmed = true; });
       scene.input.keyboard.on('keydown-A', (ev) => {
-        if (ev.ctrlKey || ev.metaKey) { ev.preventDefault(); this.selectAll(); return; }
-        if (this.selected.size) this.attackArmed = true;
+        if (ev.ctrlKey || ev.metaKey) { ev.preventDefault(); this.selectAll(); }
       });
 
       return { update: () => { } };

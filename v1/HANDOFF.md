@@ -229,6 +229,12 @@ Read this section before you debug anything. Every item here is a real incident.
     for it anymore. `Ctrl+A` selects every owned unit instead. Same rule as Trap #7: check the
     changelog before assuming any control scheme is final — this project's controls have changed
     direction twice in two days on explicit request.
+14. **Attack-move arms on `Q`, not `A` (changed 2026-07-21)** — WASD now pans the camera, so a plain
+    `A` press would otherwise both nudge the camera left AND arm an attack-move whenever units are
+    selected (the keydown-A listener fires once per press regardless of what else is bound to that
+    physical key). `Ctrl+A` still selects all; only the plain-press attack-move arm moved. If you
+    touch camera or combat-arming code, grep for both `keydown-A` and `keydown-Q` in `input.js`
+    before assuming which one does what.
 
 ---
 
@@ -297,6 +303,16 @@ changes (status, decisions, lessons). Session lessons go to `ClaudeMemory/inbox/
 ## 12. Changelog
 
 Newest first. **Append an entry here for every change.**
+
+### 2026-07-21 — WASD camera pan; attack-move arm moved from A to Q
+Jurek asked for WASD map panning. Added `W/A/S/D` to `camera.js`'s existing arrow-key poll loop
+(same `panSpeed`, purely additive — arrows still work). Caught a real collision before shipping:
+`A` was already bound as the attack-move arm key (`keydown-A` in `input.js`), so panning left with
+units selected would have also armed an attack-move, corrupting the next click. Asked Jurek to
+pick a resolution; got no reply, went with the recommended option since it was clearly labeled as
+such. Moved the plain-press attack-move arm to `Q` (free — build hotkeys are back on digits, see
+below); `Ctrl+A` (select all) is unaffected since it's a distinct combo from a bare `A` press.
+Updated the HUD hint, README, and added Trap #14.
 
 ### 2026-07-21 — Control groups removed; build hotkeys back on digits; Ctrl+A select-all
 Jurek asked to drop the numbered control groups entirely, put the build bar back on numbers, and
