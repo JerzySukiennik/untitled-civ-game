@@ -71,27 +71,29 @@ Remember to use the same port in the URL: `http://<IP>:9000`.
 
 ## Controls
 
-**The left button drives the world, the right button picks things up.**
+**Standard RTS scheme: the left button selects, the right button gives orders.**
 
 | Input | Action |
 |---|---|
-| Right-click | Select a unit or your own building |
-| Right-drag box | Select all your units in the box |
-| Left-drag | Grab and pan the map |
-| Left-click | Context order for the selection: move / attack enemy / gather node / build site / set rally |
+| Left-click | Select a unit or your own building |
+| Left-drag box | Select all your units in the box |
+| Right-click | Context order for the selection: move / attack enemy / gather node / build site / set rally |
+| Middle-drag | Grab and pan the map |
 | Arrow keys | Pan the camera |
 | Mouse wheel | Zoom (1.0×–3.0×) |
-| `1`–`9`, `0` | Start placing the matching building (number shown on each button) |
-| `Shift` + `1`–`9`, `0` | Same, for the later buildings |
-| `A` then left-click | Attack-move to a spot (engage anything on the way) |
-| `Ctrl` + `1`–`5` | Assign the current selection to a control group |
-| `Alt` + `1`–`5` | Recall a control group |
+| `Q W E R T` / `S D F G Z` | Start placing the matching building (letter shown on each button) |
+| `Shift` + same letters | Same, for the later buildings |
+| `A` then right-click | Attack-move to a spot (engage anything on the way) |
+| `1`–`5` | Select a control group |
+| `Ctrl` + `1`–`5` | Assign the current selection to that control group |
 | `Esc` | Cancel placement / attack-move / deselect |
 | Minimap click | Jump the camera there |
 
+The camera has no map border — you can pan freely off the island in any direction.
+
 Build buildings from the bottom bar (grouped by era; locked ones show what they need). Select a
 building to train units, research at the Library, advance eras at the Town Center, or set a rally
-point by left-clicking the map. Mute music or sound effects from the top bar.
+point by right-clicking the map. Mute music or sound effects from the top bar.
 
 ## Credits
 

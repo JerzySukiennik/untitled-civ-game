@@ -194,8 +194,13 @@ Read this section before you debug anything. Every item here is a real incident.
 6. **Rejoin tokens live in `sessionStorage`, not `localStorage`** (PLAN says localStorage — this is a
    deliberate deviation). With localStorage, two tabs on one machine collide into the same player,
    which breaks all two-window testing. Trade-off: fully closing and reopening a tab loses the slot.
-7. **Mouse buttons are inverted from RTS convention** by owner preference: LEFT drags the map and
-   issues orders, RIGHT selects. Do not "fix" this back to the familiar scheme.
+7. **Mouse scheme is the standard RTS convention (as of 2026-07-21): LEFT selects, RIGHT orders,
+   MIDDLE-drag pans.** This was inverted for one session (2026-07-20, "owner's spec") and this file
+   used to say "don't fix it back" — Jurek then explicitly asked to revert it, after research
+   confirmed left-select/right-order is the AoE2/StarCraft convention and matches PLAN.md §8's
+   original (never-changed) spec. So the inversion was itself the deviation, now undone. Don't
+   "fix" it back to the inverted scheme either — read the git history if a future request seems to
+   contradict this, rather than assuming either direction is permanent.
 8. **`start.bat` must stay CRLF.** Write it with explicit `\r\n`; LF-only breaks on Windows.
 9. **Subagents that die on a session limit can be resumed** with `SendMessage` to their agent id —
    they keep full context. Three of the five stage builds were finished that way. Do not restart a
@@ -206,6 +211,18 @@ Read this section before you debug anything. Every item here is a real incident.
     Fixed via `stopAll()` on `pagehide` + socket close. If you add another persistent audio source,
     tear it down there too. Note `suspended` is load-bearing: without it `_music()` restarts the
     track on the very next `update()`.
+11. **Phaser's `camera.scrollX`/`scrollY` are NOT the world-view's left/top edge once zoom != 1** —
+    they carry a zoom-dependent internal offset (`(width - displayWidth) / 2` baked into the clamp
+    math). Reading raw `scrollX` at the extremes looked like the camera was stuck 240px short of the
+    map edge at zoom 2; the actual rendered region (`cam.worldView`) reached every corner correctly.
+    If you need "what does the camera actually see", read `cam.worldView`, never `scrollX` directly.
+    Also: this embedded browser pane's `requestAnimationFrame` doesn't reliably fire even after a
+    screenshot fronts the tab (worse than Trap #3) — call `cam.preRender()` directly to force the
+    bounds clamp/worldView update when you need a synchronous read instead of waiting on a frame.
+12. **The camera has no scroll bounds (removed 2026-07-21, owner's explicit call)** — you can pan
+    off the island in every direction past the water border indefinitely. This was a deliberate
+    choice ("kamerą nie można odlecieć od wyspy... a tak nie powinno być"), not a bug; don't
+    re-add `cam.setBounds()` to "fix" scrolling into empty space.
 
 ---
 
@@ -274,6 +291,29 @@ changes (status, decisions, lessons). Session lessons go to `ClaudeMemory/inbox/
 ## 12. Changelog
 
 Newest first. **Append an entry here for every change.**
+
+### 2026-07-21 — Camera has no map border; mouse/hotkey scheme reverted to RTS standard
+Two changes from the same request, verified independently.
+
+1. **Camera bounds removed.** Jurek's actual complaint (after two rounds of clarifying questions —
+   his first phrasing sounded like units should walk on water, which turned out not to be it) was
+   that the camera hit a hard wall at the map edge and couldn't pan off the island. Verified first
+   that `cam.setBounds()` was NOT clipping any part of the map — reverse-engineered Phaser's
+   `clampX`/`clampY` from the minified bundle and confirmed `cam.worldView` reaches every corner at
+   every zoom on Jurek's exact screen profile (1728×1080, DPR 2). The actual ask was that the camera
+   *shouldn't have a border at all* — removed `cam.setBounds()` from `camera.js` entirely; panning
+   past the water is now unlimited in every direction. See Traps #11–12.
+2. **Mouse scheme reverted + build hotkeys moved to a QWERTY grid.** Researched standard RTS
+   conventions (AoE2, StarCraft): left-click selects, right-click orders, Ctrl+n sets a control
+   group, plain n recalls it. This is also PLAN.md §8's original (never-edited) spec — the inverted
+   scheme from the 2026-07-20 UI overhaul was itself the deviation. Reverted in `input.js`
+   (`onDown`/`onUp`/`onMove`: left = click-or-drag-box select, right = immediate context order,
+   attack-move arms on `A` then fires on right-click) and `camera.js` (map-drag moved from left to
+   middle button only). Build-bar hotkeys moved from digits (`1`-`9`,`0` + Shift) to the "grid
+   layout" letters nearest the left hand's resting position — `Q W E R T` / `S D F G Z` + Shift for
+   the second ten (skipping `A`, reserved for attack-move) — which also frees the digit row entirely
+   for control groups. Updated `hud.js` (hotkey table + unit-panel hint text) and README's controls
+   table. See Trap #7.
 
 ### 2026-07-20 — Audio teardown: music no longer outlives the page
 Jurek reported music playing with no server running. Diagnosis: `pmset -g assertions` showed

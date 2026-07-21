@@ -14,9 +14,11 @@ window.UCG = window.UCG || {};
     range: ['archer'], stable: ['horseman'], siege: ['ram', 'catapult']
   };
   const BRANCHES = ['Economy', 'Military', 'Construction', 'Population'];
-  // Digit hotkeys: 1-9,0 for the first ten buildings, Shift+1-9,0 for the next ten.
-  // Matched on ev.code (Digit1…Digit0) so Shift doesn't scramble the reported key.
-  const HK_DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+  // Grid hotkeys (AoE2/SC "grid layout"): the 10 keys nearest the left hand's resting position,
+  // Q-T and S-Z (skipping A, reserved for attack-move), for the first ten buildings; Shift+same
+  // for the next ten. Matched on ev.code (KeyQ…KeyZ) so Shift doesn't scramble the reported key.
+  // The freed-up digit row now belongs entirely to control groups (see input.js onKey).
+  const HK_LETTERS = ['Q', 'W', 'E', 'R', 'T', 'S', 'D', 'F', 'G', 'Z'];
   const TECH_BY_BRANCH = {};
   for (const b of BRANCHES) TECH_BY_BRANCH[b] = [];
   for (const id of Object.keys(UCG_TECHS)) TECH_BY_BRANCH[UCG_TECHS[id].branch].push(id);
@@ -24,11 +26,11 @@ window.UCG = window.UCG || {};
   const BUILD_IDS = Object.keys(UCG_BUILDINGS).filter((id) => id !== 'tc');
   const HK = {}, HK_INV = {};
   BUILD_IDS.forEach((id, i) => {
-    const d = HK_DIGITS[i % 10];
-    if (!d || i >= 20) return;
+    const k = HK_LETTERS[i % 10];
+    if (!k || i >= 20) return;
     const shifted = i >= 10;
-    HK[id] = (shifted ? '⇧' : '') + d;
-    HK_INV[(shifted ? 'S' : '') + 'Digit' + d] = id;
+    HK[id] = (shifted ? '⇧' : '') + k;
+    HK_INV[(shifted ? 'S' : '') + 'Key' + k] = id;
   });
 
   const cost$ = (cost) => UCG.Icons.costHTML(cost);
@@ -338,7 +340,7 @@ window.UCG = window.UCG || {};
       `<div class="hint" id="usel-hp"></div></div></div>` +
       `<div class="stat">${UCG.Tooltips.unitStatLine(primary)}</div>` +
       (total > 1 ? `<div class="hint">${list}</div>` : `<div class="hint">${UCG_UNITS[primary].desc}</div>`) +
-      `<div class="eyebrow-s">A attack-move · Ctrl+1-5 group</div>`;
+      `<div class="eyebrow-s">A attack-move · 1-5 select group · Ctrl+1-5 set group</div>`;
   }
 
   // ---- building selection panel ----

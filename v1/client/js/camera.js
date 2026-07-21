@@ -1,5 +1,8 @@
-// UCG.Camera: arrow-key pan + left-drag pan + wheel zoom (1.0-3.0). Bounds = map size.
+// UCG.Camera: arrow-key pan + middle-drag pan + wheel zoom (1.0-3.0). No scroll bounds by owner
+// request: the camera can fly off the island in any direction, past the water border.
 // No WASD and no edge-scroll by owner request: the map is grabbed and dragged, never nudged.
+// Left-drag is reserved for unit/box selection (input.js) since the mouse scheme reverted to the
+// standard RTS convention (left = select, right = order).
 window.UCG = window.UCG || {};
 (function (UCG) {
   const C = UCG_CONST;
@@ -7,16 +10,13 @@ window.UCG = window.UCG || {};
   UCG.Camera = {
     create(scene) {
       const cam = scene.cameras.main;
-      const worldW = C.MAP_W * C.TILE_PX, worldH = C.MAP_H * C.TILE_PX;
-      cam.setBounds(0, 0, worldW, worldH);
       cam.setZoom(C.ZOOM_DEFAULT);
 
       const keys = scene.input.keyboard.addKeys(
         { up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT' });
       const ctl = { cam, keys, dragging: false, dragX: 0, dragY: 0, panSpeed: 500 };
 
-      // Left-drag (or middle-drag) grabs the map. Input.js owns the click/drag threshold and only
-      // lets a drag through once the pointer has actually moved, so a plain click still commands.
+      // Middle-drag grabs the map.
       ctl.beginDrag = (p) => { ctl.dragging = true; ctl.dragX = p.x; ctl.dragY = p.y; };
       scene.input.on('pointerdown', (p) => { if (p.middleButtonDown()) ctl.beginDrag(p); });
       scene.input.on('pointerup', () => { ctl.dragging = false; });

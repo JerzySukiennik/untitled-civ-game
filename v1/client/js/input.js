@@ -17,12 +17,12 @@ window.UCG = window.UCG || {};
 
     create(scene, cam) {
       this.scene = scene;
-      this.cam = cam;                // camera controller, so a left-drag can hand off the pan
+      this.cam = cam;                // camera controller, for the grab cursor during a middle-drag pan
       this.ghost = scene.add.image(0, 0, 'b_house').setOrigin(0, 0).setAlpha(0.55).setDepth(500).setVisible(false);
       this.box = scene.add.rectangle(0, 0, 1, 1, 0x66ff66, 0.15)
         .setStrokeStyle(1, 0x66ff66, 0.9).setOrigin(0, 0).setDepth(500).setVisible(false);
       this._lastCursor = 0;
-      this._down = null;          // {x,y,worldX,worldY} at left-button press
+      this._sel = null;           // {x,y,worldX,worldY} at left-button press (selection click/drag)
       this._dragging = false;
       this._wallDrag = null;      // {tx,ty} start tile while dragging a wall line
 
@@ -37,8 +37,8 @@ window.UCG = window.UCG || {};
       return { update: () => { } };
     },
 
-    // Control groups live on the modifiers: plain digits belong to the build bar.
-    // Ctrl/Cmd+1-5 sets a group, Alt+1-5 recalls it. Matched on ev.code because Alt rewrites ev.key.
+    // Control groups (AoE2/SC convention): Ctrl/Cmd+1-5 sets a group, the plain digit recalls it.
+    // Matched on ev.code so modifiers never scramble which digit fired.
     onKey(ev) {
       const m = /^Digit([1-5])$/.exec(ev.code);
       if (!m) return;
@@ -46,7 +46,7 @@ window.UCG = window.UCG || {};
       if (ev.ctrlKey || ev.metaKey) {
         ev.preventDefault();
         this.groups[n] = [...this.selected];
-      } else if (ev.altKey) {
+      } else if (!ev.altKey) {
         ev.preventDefault();
         const ids = this.groups[n].filter((id) => UCG.State.entities.has(id));
         this.groups[n] = ids;
@@ -88,8 +88,8 @@ window.UCG = window.UCG || {};
         UCG.Net.send({ t: C.MSG.CURSOR, x: p.worldX / P, y: p.worldY / P });
       }
       this.updateCursor(p);
-      // Right-drag draws the selection box.
-      if (this._sel && p.rightButtonDown()) {
+      // Left-drag draws the selection box (camera panning is middle-drag / arrow keys, owned by camera.js).
+      if (this._sel && p.leftButtonDown()) {
         if (!this._dragging &&
           (Math.abs(p.x - this._sel.x) > DRAG_PX || Math.abs(p.y - this._sel.y) > DRAG_PX)) {
           this._dragging = true;
@@ -100,15 +100,6 @@ window.UCG = window.UCG || {};
           this.box.setPosition(x0, y0);
           this.box.width = Math.abs(p.worldX - this._sel.worldX);
           this.box.height = Math.abs(p.worldY - this._sel.worldY);
-        }
-        return;
-      }
-      // Left-drag past the threshold grabs the map and hands the pan to the camera.
-      if (this._down && p.leftButtonDown() && !this._wallDrag && !this.placementType) {
-        if (!this._panning &&
-          (Math.abs(p.x - this._down.x) > DRAG_PX || Math.abs(p.y - this._down.y) > DRAG_PX)) {
-          this._panning = true;
-          if (this.cam && this.cam.beginDrag) this.cam.beginDrag(p);
         }
         return;
       }
@@ -124,7 +115,7 @@ window.UCG = window.UCG || {};
     // Context cursor: attack over enemies (military selected), hand over resources (workers selected).
     updateCursor(p) {
       let kind = 'idle';
-      if (this._panning) kind = 'grab';
+      if (this.cam && this.cam.dragging) kind = 'grab';
       else if (this.placementType) kind = this._ghostOk === false ? 'no' : 'cross';
       else if (this.selected.size) {
         const wx = p.worldX / P, wy = p.worldY / P;
@@ -156,32 +147,37 @@ window.UCG = window.UCG || {};
       this.scene.tweens.add({ targets: this.ghost, x: bx + 2, duration: 40, yoyo: true, repeat: 1, onComplete: () => { this.ghost.x = bx; } });
     },
 
-    // Mouse scheme (owner's spec): LEFT = grab the map / issue orders, RIGHT = select units.
+    // Mouse scheme (standard RTS convention): LEFT selects, RIGHT issues context orders.
+    // Camera panning lives on the middle button + arrow keys (camera.js), untouched by this button.
     onDown(p) {
-      if (p.rightButtonDown()) { this._sel = { x: p.x, y: p.y, worldX: p.worldX, worldY: p.worldY }; return; }
-      if (!p.leftButtonDown()) return;
+      if (p.leftButtonDown()) {
+        // Building placement and armed attack-move both consume the plain left-click directly;
+        // otherwise a left-press starts a potential selection (click or drag box).
+        const { tx, ty } = this.tileUnder(p);
+
+        if (this.placementType) {
+          if (this.placementType === 'wall') { this._wallDrag = { tx, ty }; return; }
+          if (!this.canPlace(this.placementType, tx, ty)) { this.shakeGhost(); if (UCG.Audio) UCG.Audio.play('error'); return; }
+          UCG.Net.send({ t: C.MSG.PLACE, building: this.placementType, tx, ty });
+          if (UCG.Audio) UCG.Audio.play('place');
+          if (!p.event.shiftKey) this.cancel();
+          return;
+        }
+        this._sel = { x: p.x, y: p.y, worldX: p.worldX, worldY: p.worldY };
+        return;
+      }
+      if (!p.rightButtonDown()) return;
       const { tx, ty } = this.tileUnder(p);
 
-      // Armed attack-move: next left-click issues an attack-move to the ground.
+      // Armed attack-move: next right-click issues an attack-move to the ground.
       if (this.attackArmed && this.selected.size) {
         UCG.Net.send({ t: C.MSG.MOVE, ids: [...this.selected], tx, ty, attack: true });
         this.mark(tx, ty, true);
         this.attackArmed = false;
         return;
       }
-
-      if (this.placementType) {
-        if (this.placementType === 'wall') { this._wallDrag = { tx, ty }; return; }
-        if (!this.canPlace(this.placementType, tx, ty)) { this.shakeGhost(); if (UCG.Audio) UCG.Audio.play('error'); return; }
-        UCG.Net.send({ t: C.MSG.PLACE, building: this.placementType, tx, ty });
-        if (UCG.Audio) UCG.Audio.play('place');
-        if (!p.event.shiftKey) this.cancel();
-        return;
-      }
-      // Not placing: left press is a potential map grab. It only becomes a pan once the pointer
-      // moves past the threshold; a clean press-release stays an order to the selected units.
-      this._down = { x: p.x, y: p.y, worldX: p.worldX, worldY: p.worldY, tx, ty };
-      this._panning = false;
+      // Right-click always issues an order immediately — no drag/threshold ambiguity to resolve.
+      this.issueOrder(p);
     },
 
     onUp(p) {
@@ -193,8 +189,8 @@ window.UCG = window.UCG || {};
         if (!p.event.shiftKey) this.cancel();
         return;
       }
-      // Right button finishes a selection: box if it was dragged, single pick otherwise.
-      if (this._sel && !p.leftButtonReleased()) {
+      // Left button finishes a selection: box if it was dragged, single pick otherwise.
+      if (this._sel && !p.rightButtonReleased()) {
         const s = this._sel; this._sel = null;
         if (this._dragging) {
           this._dragging = false;
@@ -205,18 +201,6 @@ window.UCG = window.UCG || {};
         }
         return;
       }
-
-      if (!this._down) return;
-      const down = this._down; this._down = null;
-      // A drag panned the map — no order, no selection change.
-      if (this._panning) {
-        this._panning = false;
-        if (this.cam) this.cam.dragging = false;
-        this.updateCursor(p);            // drop the grab cursor immediately on release
-        return;
-      }
-      // A clean left click orders the current selection (move / attack / gather / rally).
-      this.issueOrder(p, down);
     },
 
     placeWallLine(a, b) {
@@ -289,7 +273,7 @@ window.UCG = window.UCG || {};
       return best;
     },
 
-    // ---- left-click orders (context sensitive: attack / gather / build / move / rally) ----
+    // ---- right-click orders (context sensitive: attack / gather / build / move / rally) ----
     issueOrder(p) {
       this.attackArmed = false;
       if (this.placementType) { this.cancel(); return; }
